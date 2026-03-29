@@ -187,13 +187,12 @@ export default function Recipes() {
                   </TableHeader>
                   <TableBody>
                     {recipe.ingredients.map((ing) => (
-                      <TableRow key={ing.id}>
-                        <TableCell>{ing.ingredientName}</TableCell>
-                        <TableCell className="text-right">{formatIngredientDisplay(ing, stockById.get(ing.ingredientId))}</TableCell>
-                        <TableCell className="text-right"><NumericCell value={ing.unitCost} prefix="K " /></TableCell>
-                        <TableCell className="text-right"><NumericCell value={ing.unitCost} money /></TableCell>
-                        <TableCell className="text-right"><NumericCell value={ing.requiredQty * ing.unitCost} money /></TableCell>
-                      </TableRow>
+                        <TableRow key={ing.id}>
+                          <TableCell>{ing.ingredientName}</TableCell>
+                          <TableCell className="text-right">{formatIngredientDisplay(ing, stockById.get(ing.ingredientId))}</TableCell>
+                          <TableCell className="text-right"><NumericCell value={ing.unitCost} money /></TableCell>
+                          <TableCell className="text-right"><NumericCell value={ing.requiredQty * ing.unitCost} money /></TableCell>
+                        </TableRow>
                     ))}
                   </TableBody>
                 </Table>

@@ -1,6 +1,9 @@
 import type { DepartmentId, StockItem, StockTakeSession, StockVariance } from '@/types';
-import { applyStockTakeAdjustments, getStockItemsSnapshot } from '@/lib/stockStore';
+import { applyStockTakeAdjustments, getStockItemsSnapshot, refreshStockItems } from '@/lib/stockStore';
+import { getReceiptSettingsSnapshot } from '@/lib/receiptSettingsService';
 import { logSensitiveAction } from '@/lib/systemAuditLog';
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient';
+import { getActiveBrandId } from '@/lib/activeBrand';
 
 const STORAGE_KEY = 'mthunzi.stockTakes.v1';
 
@@ -56,18 +59,19 @@ function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-export function recordStockTake(params: {
+export async function recordStockTake(params: {
   date: string; // YYYY-MM-DD
   departmentId?: DepartmentId | 'all';
   physicalCounts: Record<string, number>; // itemId -> physicalQty
   createdBy?: string;
   applyAdjustmentsToStock?: boolean;
-}): StockTakeSession {
+}): Promise<StockTakeSession> {
   const stockItems = getStockItemsSnapshot();
   const byId = new Map(stockItems.map((s) => [s.id, s] as const));
 
   const variances: StockVariance[] = [];
   const adjustments: Array<{ itemId: string; newQty: number }> = [];
+  const rpcItems: any[] = [];
 
   for (const [itemId, physicalQtyRaw] of Object.entries(params.physicalCounts)) {
     const item = byId.get(itemId);
@@ -93,15 +97,79 @@ export function recordStockTake(params: {
     }));
 
     adjustments.push({ itemId, newQty: physicalQty });
+
+    rpcItems.push({ stockItemId: item.id, systemQty, countedQty: physicalQty, unitCost, totalValue: varianceValue });
   }
 
-  // Apply adjustments so system matches the physical count (optional but default true).
+  // Attempt remote create + apply when Supabase is configured; fall back to local adjustments
+  let session: StockTakeSession;
+  const now = new Date().toISOString();
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const brandId = getActiveBrandId();
+      if (brandId) {
+        const { data: createData, error: createErr } = await supabase.rpc('stock_take_create', { p_brand_id: brandId, p_date: params.date, p_created_by: params.createdBy ?? null, p_notes: null, p_items: rpcItems });
+        if (createErr) throw createErr;
+
+        // createData should contain stock_take_id and take_no
+        const stockTakeId = createData?.[0]?.stock_take_id ?? createData?.stock_take_id ?? (createData && createData.stock_take_id) ?? null;
+        const takeNo = createData?.[0]?.take_no ?? createData?.take_no ?? null;
+
+        if (stockTakeId) {
+          // Apply the stock take
+          const { data: applyData, error: applyErr } = await supabase.rpc('stock_take_apply', { p_stock_take_id: stockTakeId });
+          if (applyErr) throw applyErr;
+
+          // Refresh local cache from DB
+          try { await refreshStockItems(); } catch { /* ignore */ }
+
+          session = {
+            id: String(stockTakeId),
+            date: params.date,
+            departmentId: params.departmentId ?? 'all',
+            createdAt: now,
+            createdBy: params.createdBy ?? 'System',
+            variances,
+          };
+
+          // persist locally as well for history
+          const state = load();
+          save({ ...state, sessions: [session, ...state.sessions] });
+
+          try {
+            const totalVarianceValue = round2(variances.reduce((sum, v) => sum + (Number.isFinite(v.varianceValue) ? v.varianceValue : 0), 0));
+            const withVariance = variances.filter((v) => Number.isFinite(v.varianceQty) && v.varianceQty !== 0).length;
+            const receipt = getReceiptSettingsSnapshot();
+            const code = (receipt && (receipt.currencyCode ?? 'ZMW')) || 'ZMW';
+            void logSensitiveAction({
+              userId: `user:${session.createdBy}`,
+              userName: session.createdBy,
+              actionType: 'stock_take_record',
+              reference: session.id,
+              newValue: withVariance,
+              notes: `Stock take ${session.date} • Dept ${session.departmentId} • ${variances.length} counted • ${withVariance} variances • value ${code} ${totalVarianceValue.toFixed(2)}`,
+              captureGeo: false,
+            });
+          } catch {
+            // ignore
+          }
+
+          return session;
+        }
+      }
+    } catch (err) {
+      console.warn('Remote stock take create/apply failed, falling back to local apply', err);
+      // fallthrough to local
+    }
+  }
+
+  // Local-only fallback: apply adjustments locally and persist session
   if (params.applyAdjustmentsToStock ?? true) {
     applyStockTakeAdjustments(adjustments);
   }
 
-  const now = new Date().toISOString();
-  const session: StockTakeSession = {
+  session = {
     id: `st-${crypto.randomUUID()}`,
     date: params.date,
     departmentId: params.departmentId ?? 'all',
@@ -116,6 +184,8 @@ export function recordStockTake(params: {
   try {
     const totalVarianceValue = round2(variances.reduce((sum, v) => sum + (Number.isFinite(v.varianceValue) ? v.varianceValue : 0), 0));
     const withVariance = variances.filter((v) => Number.isFinite(v.varianceQty) && v.varianceQty !== 0).length;
+    const receipt = getReceiptSettingsSnapshot();
+    const code = (receipt && (receipt.currencyCode ?? 'ZMW')) || 'ZMW';
 
     void logSensitiveAction({
       userId: `user:${session.createdBy}`,
@@ -123,7 +193,7 @@ export function recordStockTake(params: {
       actionType: 'stock_take_record',
       reference: session.id,
       newValue: withVariance,
-      notes: `Stock take ${session.date} • Dept ${session.departmentId} • ${variances.length} counted • ${withVariance} variances • value K ${totalVarianceValue.toFixed(2)}`,
+      notes: `Stock take ${session.date} • Dept ${session.departmentId} • ${variances.length} counted • ${withVariance} variances • value ${code} ${totalVarianceValue.toFixed(2)}`,
       captureGeo: false,
     });
   } catch {

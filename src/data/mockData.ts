@@ -30,6 +30,9 @@ export const departments: Department[] = [
   { id: 'groceries', name: 'GROCERIES', code: '12' },
 ];
 
+// Backwards-compatible alias: prefer `categories` in new UI
+export const categories = departments;
+
 // Stock Items from reports
 export const stockItems: StockItem[] = [
   // MEAT

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Plus, Factory, AlertTriangle, Trash2, ChevronsUpDown, Check, Loader2 } from 'lucide-react';
 import { PageHeader, DataTableWrapper, NumericCell, StatusBadge } from '@/components/common/PageComponents';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,6 +18,7 @@ import { getStockItemsSnapshot, subscribeStockItems } from '@/lib/stockStore';
 import { deleteBatchProduction, ensureBatchProductionsLoaded, getBatchProductionsSnapshot, recordBatchProduction, subscribeBatchProductions, BatchInsufficientStockError } from '@/lib/batchProductionStore';
 
 export default function BatchProduction() {
+  const { formatMoneyPrecise } = useCurrency();
   const recipes = useSyncExternalStore(subscribeManufacturingRecipes, getManufacturingRecipesSnapshot);
   const batches = useSyncExternalStore(subscribeBatchProductions, getBatchProductionsSnapshot);
   const stockItems = useSyncExternalStore(subscribeStockItems, getStockItemsSnapshot);
@@ -133,8 +135,8 @@ export default function BatchProduction() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold">K {batch.totalCost.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">Unit: K {batch.unitCost.toFixed(2)}</p>
+                  <p className="font-bold">{formatMoneyPrecise(batch.totalCost, 2)}</p>
+                  <p className="text-xs text-muted-foreground">Unit: {formatMoneyPrecise(batch.unitCost, 2)}</p>
                   <div className="mt-2 flex justify-end">
                     <Button
                       variant="ghost"
@@ -313,7 +315,7 @@ function RecordBatchDialog(props: {
                 </Command>
               </PopoverContent>
             </Popover>
-            {r ? <div className="text-xs text-muted-foreground">Output per recipe: {r.outputQty} {r.outputUnitType} • Unit cost: K {r.unitCost.toFixed(2)}</div> : null}
+            {r ? <div className="text-xs text-muted-foreground">Output per recipe: {r.outputQty} {r.outputUnitType} • Unit cost: {formatMoneyPrecise(r.unitCost, 2)}</div> : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

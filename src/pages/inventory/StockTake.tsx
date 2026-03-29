@@ -1,6 +1,6 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
-import { Save, AlertTriangle, Check, Filter } from 'lucide-react';
-import { PageHeader, DataTableWrapper, NumericCell, StatusBadge } from '@/components/common/PageComponents';
+import React, { useMemo, useState } from 'react';
+import { Save, Check, Filter } from 'lucide-react';
+import { PageHeader, DataTableWrapper, NumericCell } from '@/components/common/PageComponents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,15 +19,21 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { departments } from '@/data/mockData';
+import { getCategoriesSnapshot, subscribeCategories } from '@/lib/categoriesStore';
 import { DepartmentId } from '@/types';
 import { getStockItemsSnapshot, subscribeStockItems } from '@/lib/stockStore';
 import { getStockTakesSnapshot, recordStockTake, subscribeStockTakes } from '@/lib/stockTakeStore';
+import { toast } from '@/hooks/use-toast';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { useSyncExternalStore } from 'react';
 
 export default function StockTake() {
+  const { formatMoneyPrecise } = useCurrency();
   const stockItems = useSyncExternalStore(subscribeStockItems, getStockItemsSnapshot);
   const stockTakes = useSyncExternalStore(subscribeStockTakes, getStockTakesSnapshot);
-  const [selectedDept, setSelectedDept] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const categoriesSnapshot = useSyncExternalStore(subscribeCategories, getCategoriesSnapshot);
+  const categories = categoriesSnapshot.categories;
   const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
   const [isStockTakeMode, setIsStockTakeMode] = useState(false);
 
@@ -35,11 +41,11 @@ export default function StockTake() {
   const variances = latestSession?.variances ?? [];
 
   const filteredItems = stockItems.filter((item) => {
-    return selectedDept === 'all' || item.departmentId === selectedDept;
+    return selectedCategory === 'all' || item.departmentId === selectedCategory;
   });
 
-  const getDepartmentName = (deptId: DepartmentId) => {
-    return departments.find(d => d.id === deptId)?.name || deptId;
+  const getCategoryName = (deptId: DepartmentId) => {
+    return categories.find(d => d.id === deptId)?.name || deptId;
   };
 
   const handleCountChange = (itemId: string, value: string) => {
@@ -77,6 +83,51 @@ export default function StockTake() {
 
   const netVariance = variances.reduce((sum, v) => sum + v.varianceValue, 0);
 
+  function csvEscape(val: any) {
+    if (val === null || val === undefined) return '';
+    const s = String(val);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function downloadSessionCsv(session: any) {
+    const headers = [
+      'Item Code','Item Name','Category','Unit','System Qty','Physical Qty','Variance Qty','Variance Value','Lowest','Highest','Current Cost','Count Date'
+    ];
+
+    const rows = session.variances.map((v: any) => [
+      v.itemCode, v.itemName, getCategoryName(v.departmentId), v.unitType, v.systemQty, v.physicalQty, v.varianceQty, v.varianceValue, v.lowestCost, v.highestCost, v.currentCost, v.countDate
+    ]);
+
+    const meta = [
+      [`Session ID: ${session.id}`],
+      [`Date: ${session.date}`],
+      [`Created By: ${session.createdBy}`],
+      []
+    ];
+
+    const lines: string[] = [];
+    for (const m of meta) {
+      lines.push(m.map(csvEscape).join(','));
+    }
+    lines.push(headers.map(csvEscape).join(','));
+    for (const r of rows) {
+      lines.push(r.map(csvEscape).join(','));
+    }
+
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeDate = session.date.replace(/[^0-9A-Za-z-]/g, '');
+    a.download = `stock-take-${safeDate}-${session.id}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function startStockTake() {
     setIsStockTakeMode(true);
     setPhysicalCounts({});
@@ -87,17 +138,23 @@ export default function StockTake() {
     setPhysicalCounts({});
   }
 
-  function saveStockTake() {
+  async function saveStockTake() {
     if (!canSave) return;
-    recordStockTake({
-      date: dateKeyLocal(new Date()),
-      departmentId: (selectedDept === 'all' ? 'all' : (selectedDept as DepartmentId)),
-      physicalCounts: parsedPhysicalCounts,
-      createdBy: 'System',
-      applyAdjustmentsToStock: true,
-    });
-    setIsStockTakeMode(false);
-    setPhysicalCounts({});
+    try {
+      const session = await recordStockTake({
+        date: dateKeyLocal(new Date()),
+        departmentId: (selectedCategory === 'all' ? 'all' : (selectedCategory as DepartmentId)),
+        physicalCounts: parsedPhysicalCounts,
+        createdBy: 'System',
+        applyAdjustmentsToStock: true,
+      });
+      toast({ title: 'Stock take saved', description: `${session.variances.length} variances recorded` });
+    } catch (err) {
+      toast({ title: 'Save failed', description: (err as any)?.message ?? 'Please try again', variant: 'destructive' });
+    } finally {
+      setIsStockTakeMode(false);
+      setPhysicalCounts({});
+    }
   }
 
   return (
@@ -106,7 +163,7 @@ export default function StockTake() {
         title="Stock Take"
         description={
           latestSession
-            ? `Latest saved: ${latestSession.date} • Variance: K ${netVariance.toFixed(2)}`
+            ? `Latest saved: ${latestSession.date} • Variance: ${formatMoneyPrecise(netVariance, 2)}`
             : 'Perform physical stock counts and generate variance reports'
         }
         actions={
@@ -122,16 +179,22 @@ export default function StockTake() {
                 </Button>
               </>
             ) : (
-              <Button onClick={startStockTake}>
+              <div className="flex items-center gap-2">
+                {latestSession && (
+                  <Button variant="outline" onClick={() => downloadSessionCsv(latestSession)}>
+                    Export
+                  </Button>
+                )}
+                <Button onClick={startStockTake}>
                 <Check className="h-4 w-4 mr-2" />
                 Start Stock Take
-              </Button>
+                </Button>
+              </div>
             )}
           </div>
         }
       />
 
-      {/* Variance Summary Cards */}
       {!isStockTakeMode && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card>
@@ -141,8 +204,8 @@ export default function StockTake() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-success">
-                K {totalPositiveVariance.toFixed(2)}
+                <p className="text-2xl font-bold text-success">
+                {formatMoneyPrecise(totalPositiveVariance, 2)}
               </p>
             </CardContent>
           </Card>
@@ -153,8 +216,8 @@ export default function StockTake() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-destructive">
-                K {Math.abs(totalNegativeVariance).toFixed(2)}
+                <p className="text-2xl font-bold text-destructive">
+                {formatMoneyPrecise(Math.abs(totalNegativeVariance), 2)}
               </p>
             </CardContent>
           </Card>
@@ -166,23 +229,55 @@ export default function StockTake() {
             </CardHeader>
             <CardContent>
               <p className={`text-2xl font-bold ${netVariance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                K {netVariance.toFixed(2)}
+                {formatMoneyPrecise(netVariance, 2)}
               </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Filters */}
+      {/* Previous takes history */}
+      {!isStockTakeMode && stockTakes.length > 1 && (
+        <div className="mt-8">
+          <h3 className="text-lg font-medium mb-4">Previous Stock Takes</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {stockTakes.slice(1).map((s) => (
+              <Card key={s.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">{s.date}</div>
+                      <div className="text-xs text-muted-foreground">By {s.createdBy} • {s.variances.length} items</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => downloadSessionCsv(s)}>
+                        Export
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => toast({ title: 'Selected', description: 'Preview not implemented' })}>
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                              <div className="text-sm text-muted-foreground">Category: {s.departmentId === 'all' ? 'All' : getCategoryName(s.departmentId)}</div>
+                  <div className="text-sm mt-2">Variances: {s.variances.filter((v:any)=>v.varianceQty!==0).length}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <Select value={selectedDept} onValueChange={setSelectedDept}>
-          <SelectTrigger className="w-full sm:w-[250px]">
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full sm:w-[250px]">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All Departments" />
+            <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {departments.map((dept) => (
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((dept) => (
               <SelectItem key={dept.id} value={dept.id}>
                 {dept.name}
               </SelectItem>
@@ -191,7 +286,6 @@ export default function StockTake() {
         </Select>
       </div>
 
-      {/* Stock Take Mode */}
       {isStockTakeMode ? (
         <DataTableWrapper>
           <Table className="data-table">
@@ -199,7 +293,7 @@ export default function StockTake() {
               <TableRow>
                 <TableHead className="w-[80px]">Code</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Department</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead className="w-[60px]">Unit</TableHead>
                 <TableHead className="text-right">System Qty</TableHead>
                 <TableHead className="w-[150px]">Physical Count</TableHead>
@@ -215,7 +309,7 @@ export default function StockTake() {
                   <TableRow key={item.id}>
                     <TableCell className="font-mono">{item.code}</TableCell>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-xs">{getDepartmentName(item.departmentId)}</TableCell>
+                    <TableCell className="text-xs">{getCategoryName(item.departmentId)}</TableCell>
                     <TableCell className="text-xs">{item.unitType}</TableCell>
                     <TableCell className="text-right">
                       <NumericCell value={item.currentStock} />
@@ -251,73 +345,8 @@ export default function StockTake() {
           </Table>
         </DataTableWrapper>
       ) : (
-        /* Variance Report View */
         <div className="space-y-6">
-          {departments.map((dept) => {
-            const deptVariances = variances.filter(v => v.departmentId === dept.id);
-            if (deptVariances.length === 0) return null;
-
-            const deptTotal = deptVariances.reduce((sum, v) => sum + v.varianceValue, 0);
-
-            return (
-              <Card key={dept.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">{dept.name}</CardTitle>
-                    <span className={`font-medium ${deptTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      K {deptTotal.toFixed(2)}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <DataTableWrapper className="border-0 rounded-none">
-                    <Table className="data-table">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Code</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead className="w-[60px]">Unit</TableHead>
-                          <TableHead className="text-right">Lowest</TableHead>
-                          <TableHead className="text-right">Highest</TableHead>
-                          <TableHead className="text-right">Current</TableHead>
-                          <TableHead className="text-right">Times</TableHead>
-                          <TableHead className="text-right">Var Qty</TableHead>
-                          <TableHead className="text-right">Var Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {deptVariances.map((v) => (
-                          <TableRow key={v.id}>
-                            <TableCell className="font-mono">{v.itemCode}</TableCell>
-                            <TableCell className="font-medium">{v.itemName}</TableCell>
-                            <TableCell className="text-xs">{v.unitType}</TableCell>
-                            <TableCell className="text-right">
-                              <NumericCell value={v.lowestCost} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <NumericCell value={v.highestCost} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <NumericCell value={v.currentCost} />
-                            </TableCell>
-                            <TableCell className="text-right">{v.timesHadVariance}</TableCell>
-                            <TableCell className="text-right">
-                              <NumericCell value={v.varianceQty} showSign colorCode />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <NumericCell value={v.varianceValue} money showSign colorCode />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </DataTableWrapper>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {!variances.length && (
+          {variances.length === 0 ? (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">No variance report yet</CardTitle>
@@ -328,6 +357,70 @@ export default function StockTake() {
                 </p>
               </CardContent>
             </Card>
+          ) : (
+            categories.map((dept) => {
+              const deptVariances = variances.filter(v => v.departmentId === dept.id);
+              if (deptVariances.length === 0) return null;
+
+              const deptTotal = deptVariances.reduce((sum, v) => sum + v.varianceValue, 0);
+
+              return (
+                <Card key={dept.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium">{dept.name}</CardTitle>
+                      <span className={`font-medium ${deptTotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatMoneyPrecise(deptTotal, 2)}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <DataTableWrapper className="border-0 rounded-none">
+                      <Table className="data-table">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="w-[60px]">Unit</TableHead>
+                            <TableHead className="text-right">Lowest</TableHead>
+                            <TableHead className="text-right">Highest</TableHead>
+                            <TableHead className="text-right">Current</TableHead>
+                            <TableHead className="text-right">Times</TableHead>
+                            <TableHead className="text-right">Var Qty</TableHead>
+                            <TableHead className="text-right">Var Value</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {deptVariances.map((v) => (
+                            <TableRow key={v.id}>
+                              <TableCell className="font-mono">{v.itemCode}</TableCell>
+                              <TableCell className="font-medium">{v.itemName}</TableCell>
+                              <TableCell className="text-xs">{v.unitType}</TableCell>
+                              <TableCell className="text-right">
+                                <NumericCell value={v.lowestCost} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <NumericCell value={v.highestCost} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <NumericCell value={v.currentCost} />
+                              </TableCell>
+                              <TableCell className="text-right">{v.timesHadVariance}</TableCell>
+                              <TableCell className="text-right">
+                                <NumericCell value={v.varianceQty} showSign colorCode />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <NumericCell value={v.varianceValue} money showSign colorCode />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </DataTableWrapper>
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       )}

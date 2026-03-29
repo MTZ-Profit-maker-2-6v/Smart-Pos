@@ -37,6 +37,7 @@ import { toast } from '@/components/ui/use-toast';
 
 import type { StockItem } from '@/types';
 import { getStockItemsSnapshot, subscribeStockItems } from '@/lib/stockStore';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import {
   createStockIssue,
   getStockIssuesSnapshot,
@@ -128,6 +129,7 @@ function dateKeyLocal(d: Date) {
 }
 
 export default function StockIssues() {
+    const { formatMoneyPrecise } = useCurrency();
   const stockItems = useSyncExternalStore(subscribeStockItems, getStockItemsSnapshot);
   const issues = useSyncExternalStore(subscribeStockIssues, getStockIssuesSnapshot);
   const loading = useSyncExternalStore(subscribeStockIssuesLoading, getStockIssuesLoadingSnapshot);
@@ -370,7 +372,7 @@ export default function StockIssues() {
     <div>
       <PageHeader
         title="Stock Issues"
-        description="Record internal stock transfers from Main Store to Departments"
+        description="Record internal stock transfers from Main Store to Categories"
         actions={
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -382,7 +384,7 @@ export default function StockIssues() {
             <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-auto">
               <DialogHeader>
                 <DialogTitle>Create Stock Issue</DialogTitle>
-                <DialogDescription>Transfer stock from Main Store to a Department</DialogDescription>
+                <DialogDescription>Transfer stock from Main Store to a Category</DialogDescription>
               </DialogHeader>
 
               {validated.invalidTouchedLines.length ? (
@@ -555,7 +557,7 @@ export default function StockIssues() {
                         ) : null}
                         <div className="flex items-center justify-between text-sm">
                           <span>Estimated value:</span>
-                          <span className="font-medium">K {validated.totalValue.toFixed(2)}</span>
+                          <span className="font-medium">{formatMoneyPrecise(validated.totalValue, 2)}</span>
                         </div>
                       </CardContent>
                     </Card>
@@ -650,7 +652,7 @@ export default function StockIssues() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Value</p>
-                    <p className="font-medium">K {Number(grp.totalValue ?? 0).toFixed(2)}</p>
+                          <p className="font-medium">{formatMoneyPrecise(Number(grp.totalValue ?? 0), 2)}</p>
                   </div>
                 </div>
 
@@ -673,6 +675,8 @@ export default function StockIssues() {
                         <div>
                           <div className="text-xs text-muted-foreground">Unit Cost</div>
                           <div className="font-medium text-right">K {(Number(line.unitCostAtTime ?? line.unit_cost_at_time ?? 0)).toFixed(2)}</div>
+                                                  <div className="font-medium text-right">{formatMoneyPrecise(Number(line.unitCostAtTime ?? line.unit_cost_at_time ?? 0), 2)}</div>
+                                                  <span className="font-medium">{formatMoneyPrecise(Number(grp.totalValue ?? 0), 2)}</span>
                         </div>
                         <div className="sm:col-span-1">
                           <div className="text-xs text-muted-foreground">Notes</div>

@@ -12,6 +12,8 @@ import { NavLink } from 'react-router-dom';
 import { useBranding } from '@/contexts/BrandingContext';
 import { getFeatureFlagsSnapshot, setFeatureEnabled, subscribeFeatureFlags } from '@/lib/featureFlagsStore';
 import { addCategory, deleteCategory, getCategoriesSnapshot, refreshCategories, subscribeCategories, updateCategory } from '@/lib/categoriesStore';
+import { departments as seededDepartments } from '@/data/mockData';
+import { toast } from '@/hooks/use-toast';
 import { addSupplier, deleteSupplier, getSuppliersSnapshot, refreshSuppliers, subscribeSuppliers, updateSupplier } from '@/lib/suppliersStore';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -75,10 +77,55 @@ export default function Settings() {
   }, [currencyCode]);
 
   useEffect(() => {
-    // Best-effort refresh when opening Settings.
-    void refreshCategories().catch(() => {});
-    void refreshSuppliers().catch(() => {});
+    // Best-effort refresh when opening Settings. Add any missing built-in categories.
+    (async () => {
+      try {
+        await refreshCategories().catch(() => {});
+        await refreshSuppliers().catch(() => {});
+
+        const snap = getCategoriesSnapshot();
+        if (hasPermission('manageSettings') && Array.isArray(snap.categories)) {
+          const existingNames = new Set<string>(snap.categories.map((c: any) => String(c.name ?? '').toLowerCase()));
+          let added = false;
+          for (const d of seededDepartments) {
+            const name = String(d.name ?? '').trim();
+            if (!name) continue;
+            if (existingNames.has(name.toLowerCase())) continue;
+            existingNames.add(name.toLowerCase());
+            // eslint-disable-next-line no-await-in-loop
+            await addCategory(name);
+            added = true;
+          }
+          if (added) {
+            toast({ title: 'Defaults seeded', description: 'Missing default categories added' });
+            void refreshCategories();
+          }
+        }
+      } catch (e) {
+        console.warn('Default categories seed failed', e);
+      }
+    })();
   }, []);
+
+  const onSeedDefaults = async () => {
+    if (!hasPermission('manageSettings')) return;
+    try {
+      const existingNames = new Set(categoriesSnap.categories.map((c:any) => String(c.name).toLowerCase()));
+      for (const d of seededDepartments) {
+        const name = String(d.name ?? '').trim();
+        if (!name) continue;
+        if (existingNames.has(name.toLowerCase())) continue;
+        // addCategory will handle DB/local insertion
+        // eslint-disable-next-line no-await-in-loop
+        await addCategory(name);
+      }
+      toast({ title: 'Defaults seeded', description: 'Default categories added' });
+      void refreshCategories();
+    } catch (e) {
+      console.warn('Failed to seed defaults', e);
+      toast({ title: 'Seed failed', description: 'See console for details', variant: 'destructive' });
+    }
+  };
 
   const onAddCategory = async () => {
     const name = newCategoryName.trim();
@@ -248,6 +295,7 @@ export default function Settings() {
               onChange={(e) => setNewCategoryName(e.target.value)}
             />
             <Button onClick={onAddCategory} disabled={!newCategoryName.trim() || !hasPermission('manageSettings')}>Add</Button>
+            <Button variant="outline" onClick={onSeedDefaults} disabled={!hasPermission('manageSettings')}>Seed defaults</Button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">

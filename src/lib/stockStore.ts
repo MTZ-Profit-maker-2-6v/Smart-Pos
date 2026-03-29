@@ -125,6 +125,11 @@ async function fetchFromDb() {
   }
 }
 
+// Public refresh helper used by other stores/pages when a remote change affects stock_items
+export async function refreshStockItems() {
+  await fetchFromDb();
+}
+
 export function subscribeStockItems(listener: Listener) {
   listeners = [...listeners, listener];
 

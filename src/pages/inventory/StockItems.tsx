@@ -399,10 +399,10 @@ export default function StockItems() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department">Category</Label>
                     <Select value={addForm.departmentId} onValueChange={val => setAddForm(f => ({ ...f, departmentId: val }))}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select department" />
+                        <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
                         {departmentsList.map((dept) => (
@@ -650,12 +650,12 @@ export default function StockItems() {
           />
         </div>
         <Select value={selectedDept} onValueChange={setSelectedDept}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All Departments" />
+            <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
+            <SelectItem value="all">All Categories</SelectItem>
             {departmentsList.map((dept) => (
               <SelectItem key={dept.id} value={dept.id}>
                 {dept.name}
@@ -908,10 +908,10 @@ export default function StockItems() {
                               </div>
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                  <Label htmlFor="edit-department">Department</Label>
+                                  <Label htmlFor="edit-department">Category</Label>
                                   <Select value={editForm.departmentId} onValueChange={val => setEditForm(f => ({ ...f, departmentId: val }))}>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Select department" />
+                                        <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {departmentsList.map((dept) => (
