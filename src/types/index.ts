@@ -371,7 +371,10 @@ export interface ReportFilters extends DateRangeFilter {
 
 // Daily Sales Report
 export interface DailySalesReport {
-  date: string; // ISO date string
+  date: string; // end of range ISO date string
+  startDate?: string;
+  endDate?: string;
+  brandName?: string;
   totals: {
     netSales: number;
     grossSales: number;

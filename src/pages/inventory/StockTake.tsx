@@ -32,11 +32,19 @@ export default function StockTake() {
   const stockItems = useSyncExternalStore(subscribeStockItems, getStockItemsSnapshot);
   const [stockTakes, setStockTakes] = useState<any[]>([]);
   const [loadingStockTakes, setLoadingStockTakes] = useState(false);
-  const [startDate, setStartDate] = useState<string>(dateKeyLocal(new Date()));
-  const [endDate, setEndDate] = useState<string>(dateKeyLocal(new Date()));
+  const initialEndDate = new Date();
+  const initialStartDate = new Date(initialEndDate);
+  initialStartDate.setDate(initialEndDate.getDate() - 30);
+  const [startDate, setStartDate] = useState<string>(dateKeyLocal(initialStartDate));
+  const [endDate, setEndDate] = useState<string>(dateKeyLocal(initialEndDate));
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const categoriesSnapshot = useSyncExternalStore(subscribeCategories, getCategoriesSnapshot);
   const categories = categoriesSnapshot.categories;
+
+  const rangeLabel = useMemo(() => {
+    if (startDate === endDate) return `Showing stock take for ${startDate}`;
+    return `Showing stock takes from ${startDate} to ${endDate}`;
+  }, [startDate, endDate]);
   const [physicalCounts, setPhysicalCounts] = useState<Record<string, string>>({});
   const [isStockTakeMode, setIsStockTakeMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -201,9 +209,7 @@ export default function StockTake() {
       <PageHeader
         title="Stock Take"
         description={
-          latestSession
-            ? `Latest saved: ${latestSession.date} • Variance: ${formatMoneyPrecise(netVariance, 2)}`
-            : 'Perform physical stock counts and generate variance reports'
+          `${rangeLabel} ${latestSession ? `• Latest saved: ${latestSession.date} • Variance: ${formatMoneyPrecise(netVariance, 2)}` : '• Perform physical stock counts and generate variance reports'}`
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">

@@ -12,7 +12,7 @@ import {
   Truck,
   UtensilsCrossed
 } from 'lucide-react';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { PageHeader, KPICard, DataTableWrapper, NumericCell, StatusBadge } from '@/components/common/PageComponents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -34,6 +34,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Table,
   TableBody,
   TableCell,
@@ -48,6 +56,7 @@ import { subscribeExpenses, getExpensesSnapshot, addExpense } from '@/lib/expens
 import { subscribeStockTakes, getStockTakesSnapshot } from '@/lib/stockTakeStore';
 import { computeDashboardMetrics, fetchDashboardStatsFromDb } from '@/lib/dashboardMetrics';
 import { useAuth } from '@/contexts/AuthContext';
+import { useReportSharer } from '@/hooks/useReportSharer';
 import { subscribeToRealtimeOrders } from '@/lib/orderStore';
 import { subscribeToRealtimeStockItems } from '@/lib/stockStore';
 import { subscribeToRealtimeExpenses } from '@/lib/expenseStore';
@@ -93,13 +102,26 @@ export default function Dashboard() {
   const today = useMemo(() => dateKeyLocal(new Date()), []);
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
+  const fromInputRef = useRef<HTMLInputElement>(null);
+  const toInputRef = useRef<HTMLInputElement>(null);
   const [dbSnapshot, setDbSnapshot] = useState<any | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const rangeLabel = useMemo(() => {
+    if (startDate === endDate && startDate === today) {
+      return "Today's reports";
+    }
+    if (startDate === endDate) {
+      return `Report for ${startDate}`;
+    }
+    return `Reports: ${startDate} → ${endDate}`;
+  }, [startDate, endDate, today]);
+
   // Always fetch DB metrics on mount and when brand/date changes
   const refreshDbMetrics = async () => {
     setIsLoading(true);
+    const start = Date.now();
     try {
       const res = await fetchDashboardStatsFromDb(brandId, startDate, endDate);
       if (res) {
@@ -109,7 +131,10 @@ export default function Dashboard() {
     } catch (e) {
       console.error('Failed to fetch dashboard stats from DB', e);
     } finally {
-      setIsLoading(false);
+      const elapsed = Date.now() - start;
+      const minDelay = 600;
+      const wait = elapsed < minDelay ? minDelay - elapsed : 0;
+      window.setTimeout(() => setIsLoading(false), wait);
     }
   };
 
@@ -133,80 +158,21 @@ export default function Dashboard() {
     });
   }, [startDate, endDate, orders, grvs, expenses, stockTakes]);
 
-  // Prefer DB snapshot for overview, but always fallback to local for instant feedback
-  const data = useMemo(() => {
-    if (!dbSnapshot) return metrics.overview;
-    const snap: any = dbSnapshot;
-    const fallback = metrics.overview;
-    return {
-      ...fallback,
-      reportDate: snap.reportDate ?? fallback.reportDate,
-      turnoverIncl: Number(snap.total_revenue ?? fallback.turnoverIncl),
-      turnoverExcl: fallback.turnoverExcl,
-      costOfSales: fallback.costOfSales,
-      costOfSalesPercent: fallback.costOfSalesPercent ?? fallback.costOfSalesPercent,
-      grossProfit: fallback.grossProfit,
-      grossProfitPercent: fallback.grossProfitPercent ?? fallback.grossProfitPercent,
-      expenses: Number(snap.total_expenses ?? fallback.expenses),
-      netProfit: Number((snap.total_revenue ?? fallback.turnoverIncl) - (fallback.costOfSales ?? 0) - (snap.total_expenses ?? fallback.expenses)),
-    };
-  }, [dbSnapshot, metrics.overview]);
+  // Keep all displayed metrics firmly bound to selected date range via the local computeDashboardMetrics result.
+  const data = useMemo(() => metrics.overview, [metrics.overview]);
 
-  // Unified data state: prefer dbSnapshot (mapped by fetchDashboardStatsFromDb), fallback to local metrics
-  const topSellers = useMemo(() => {
-    if (dbSnapshot && Array.isArray(dbSnapshot.topSellers)) {
-      return dbSnapshot.topSellers;
-    }
-    return metrics.topSellers;
-  }, [dbSnapshot, metrics.topSellers]);
+  // Unified data state: prefer local metrics for date-range consistency.
+  const topSellers = metrics.topSellers;
+  const staffRows = metrics.staffRows;
+  const topVariances = metrics.varianceItems;
+  const lowSeller = metrics.lowSeller;
 
-  const staffRows = useMemo(() => {
-    if (dbSnapshot && Array.isArray(dbSnapshot.staffRows)) {
-      return dbSnapshot.staffRows;
-    }
-    return metrics.staffRows;
-  }, [dbSnapshot, metrics.staffRows]);
+  const shouldUseDbSnapshot = Boolean(dbSnapshot && dbSnapshot.reportDate === endDate);
 
-  const topVariances = useMemo(() => {
-    if (dbSnapshot && Array.isArray(dbSnapshot.variance_alerts)) {
-      // Expecting array of { id, itemName, varianceQty, varianceValue }
-      return dbSnapshot.variance_alerts.map((item: any) => ({
-        id: item.id,
-        itemName: item.itemName,
-        varianceQty: Number(item.varianceQty) || 0,
-        varianceValue: Number(item.varianceValue) || 0,
-      }));
-    }
-    return metrics.varianceItems;
-  }, [dbSnapshot, metrics.varianceItems]);
-  const lowSeller = useMemo(() => {
-    if (dbSnapshot && Array.isArray(dbSnapshot.top_selling_items) && dbSnapshot.top_selling_items.length > 0) {
-      // Use the last item as the lowest seller
-      const item = dbSnapshot.top_selling_items[dbSnapshot.top_selling_items.length - 1];
-      return {
-        itemName: item.name,
-        quantity: item.qty,
-        totalSales: item.sales,
-        gpAfterDiscount: 0,
-      };
-    }
-    return metrics.lowSeller;
-  }, [dbSnapshot, metrics.lowSeller]);
+  const { shareDailyReport, downloadCsv, downloadDoc, shareViaWhatsApp, downloadMetricCsv } = useReportSharer();
 
-  const [expenseOpen, setExpenseOpen] = useState(false);
-  const [expenseDate, setExpenseDate] = useState<string>(endDate);
-  const [expenseCategory, setExpenseCategory] = useState<string>('utilities');
-  const [expenseAmount, setExpenseAmount] = useState<string>('');
-  const [expenseDescription, setExpenseDescription] = useState<string>('');
-
-  const totalStaffSales = useMemo(
-    () => staffRows.reduce((sum, s) => sum + (Number.isFinite(s.totalSales) ? s.totalSales : 0), 0),
-    [staffRows]
-  );
-
-  // Payment breakdown: prefer DB snapshot if available
   const paymentBreakdown = useMemo(() => {
-    if (dbSnapshot && typeof dbSnapshot.paymentBreakdown === 'object') {
+    if (shouldUseDbSnapshot && dbSnapshot?.paymentBreakdown && typeof dbSnapshot.paymentBreakdown === 'object') {
       const cashTotal = Number(dbSnapshot.paymentBreakdown.cash || dbSnapshot.paymentBreakdown.cashTotal || 0);
       const cardTotal = Number(dbSnapshot.paymentBreakdown.card || dbSnapshot.paymentBreakdown.cardTotal || 0);
       const chequeTotal = Number(dbSnapshot.paymentBreakdown.cheque || dbSnapshot.paymentBreakdown.chequeTotal || 0);
@@ -224,7 +190,65 @@ export default function Dashboard() {
       chequeTotal: Number(data.chequeTotal),
       totalPaytypes: Number(data.totalPaytypes),
     };
-  }, [dbSnapshot, data]);
+  }, [shouldUseDbSnapshot, dbSnapshot, data]);
+
+  const hoursPerDay = useMemo(() => {
+    if (shouldUseDbSnapshot && Array.isArray(dbSnapshot?.hoursPerDay) && dbSnapshot.hoursPerDay.length > 0) {
+      const total = dbSnapshot.hoursPerDay.reduce((sum: number, h: any) => sum + Number(h.total || 0), 0);
+      return Number((total / dbSnapshot.hoursPerDay.length).toFixed(1));
+    }
+    return data.hoursPerDay;
+  }, [shouldUseDbSnapshot, dbSnapshot, data.hoursPerDay]);
+
+  const cashierShiftsByStaff = shouldUseDbSnapshot && Array.isArray(dbSnapshot?.cashierShiftsByStaff)
+    ? dbSnapshot.cashierShiftsByStaff
+    : [];
+
+  const cashierShiftCount = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftCount ?? 0) : 0;
+  const cashierShiftClosedCount = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftClosedCount ?? 0) : 0;
+  const cashierShiftOpeningTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftOpeningTotal ?? 0) : 0;
+  const cashierShiftClosingTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftClosingTotal ?? 0) : 0;
+  const cashierShiftVarianceTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftVarianceTotal ?? 0) : 0;
+
+  const dashboardReport = useMemo(() => {
+    return {
+      date: endDate,
+      startDate,
+      endDate,
+      brandName: brand?.name || user?.name || 'Profit Maker POS',
+      totals: {
+        netSales: Number(data.turnoverExcl || 0),
+        grossSales: Number(data.turnoverIncl || 0),
+        cogs: Number(data.costOfSales || 0),
+        profit: Number(data.grossProfit || 0),
+        laborCost: Number(data.expenses || 0),
+      },
+      topSellingItems: topSellers.slice(0, 20).map((item: any) => ({
+        name: item.itemName || item.name || 'N/A',
+        quantity: Number(item.quantity || item.qty || 0),
+        totalSales: Number(item.totalSales || item.sales || 0),
+      })),
+      stockVariances: topVariances.slice(0, 20).map((item: any) => ({
+        item: item.itemName || 'N/A',
+        theoretical: Number(item.varianceQty || 0),
+        actual: Number(item.varianceQty || 0),
+        uom: 'units',
+        cost: Number(item.varianceValue || 0),
+      })),
+      voids: [],
+    };
+  }, [endDate, data, topSellers, topVariances]);
+
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [expenseDate, setExpenseDate] = useState<string>(endDate);
+  const [expenseCategory, setExpenseCategory] = useState<string>('utilities');
+  const [expenseAmount, setExpenseAmount] = useState<string>('');
+  const [expenseDescription, setExpenseDescription] = useState<string>('');
+
+  const totalStaffSales = useMemo(
+    () => staffRows.reduce((sum, s) => sum + (Number.isFinite(s.totalSales) ? s.totalSales : 0), 0),
+    [staffRows]
+  );
 
   function handleAddExpense() {
     const amount = Number(expenseAmount);
@@ -246,65 +270,130 @@ export default function Dashboard() {
         title="Management Overview" 
         description={`Report Date: ${data.reportDate}${data?.drnRange?.from ? ` | DRN: ${data.drnRange.from} → ${data.drnRange.to}` : ''}`}
         actions={
-          <>
-            <div className="flex items-center gap-2">
-              <div className="grid gap-1">
-                <Label className="text-xs">From</Label>
-                <Input className="h-9" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-              </div>
-              <div className="grid gap-1">
-                <Label className="text-xs">To</Label>
-                <Input className="h-9" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              </div>
-            </div>
-            <Button variant="outline" onClick={() => {
-              setExpenseDate(endDate);
-              setExpenseOpen(true);
-            }}>
-              Add Expense
-            </Button>
-            {lastUpdated && (
-              <div className="text-xs text-muted-foreground ml-3 flex items-center">
-                <span>Last Updated: {new Date(lastUpdated).toLocaleString()}</span>
-              </div>
-            )}
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">Export</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[220px]">
+              <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => downloadCsv(dashboardReport)}>
+                All Metrics (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => downloadDoc(dashboardReport)}>
+                All Metrics (DOC)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => shareDailyReport(dashboardReport)}>
+                All Metrics (PDF)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => shareViaWhatsApp(dashboardReport)}>
+                Share via WhatsApp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
+      <div className="mb-3 text-sm text-muted-foreground font-medium">{rangeLabel}</div>
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div
+          className="flex items-center gap-4 rounded border border-muted/40 p-2 cursor-pointer"
+          onClick={() => {
+            fromInputRef.current?.focus();
+            fromInputRef.current?.showPicker?.();
+          }}
+        >
+          <div className="grid gap-1">
+            <Label className="text-xs">From</Label>
+            <Input
+              ref={fromInputRef}
+              className="h-9"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              onClick={(e) => {
+                e.stopPropagation();
+                fromInputRef.current?.focus();
+                fromInputRef.current?.showPicker?.();
+              }}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-xs">To</Label>
+            <Input
+              ref={toInputRef}
+              className="h-9"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              onClick={(e) => {
+                e.stopPropagation();
+                toInputRef.current?.focus();
+                toInputRef.current?.showPicker?.();
+              }}
+            />
+          </div>
+        </div>
+        <Button variant="outline" onClick={() => {
+          setExpenseDate(endDate);
+          setExpenseOpen(true);
+        }}>
+          Add Expense
+        </Button>
+        {lastUpdated && (
+          <div className="text-xs text-muted-foreground">
+            Last Updated: {new Date(lastUpdated).toLocaleString()}
+          </div>
+        )}
+      </div>
 
       {/* Primary KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard
-          title="Total Turnover (Incl)"
-          value={formatMoneyPrecise(data.turnoverIncl, 2)}
-          loading={isLoading}
-          subtitle={`Excl Tax: ${formatMoneyPrecise(data.turnoverExcl, 2)}`}
-          icon={<DollarSign className="h-5 w-5 text-primary" />}
-        />
-        <KPICard
-          title="Cost of Sales"
-          value={formatMoneyPrecise(data.costOfSales, 2)}
-          loading={isLoading}
-          subtitle={`${data.costOfSalesPercent.toFixed(2)}% of sales`}
-          variant="warning"
-          icon={<TrendingDown className="h-5 w-5 text-warning" />}
-        />
-        <KPICard
-          title="Gross Profit"
-          value={formatMoneyPrecise(data.grossProfit, 2)}
-          loading={isLoading}
-          subtitle={`${data.grossProfitPercent.toFixed(2)}%`}
-          variant="success"
-          icon={<TrendingUp className="h-5 w-5 text-success" />}
-        />
-        <KPICard
-          title="Net Profit"
-          value={formatMoneyPrecise(data.netProfit, 2)}
-          loading={isLoading}
-          subtitle={`Expenses: ${formatMoneyPrecise(data.expenses, 2)}`}
-          variant={data.netProfit >= 0 ? 'success' : 'danger'}
-          icon={<DollarSign className={`h-5 w-5 ${data.netProfit >= 0 ? 'text-success' : 'text-destructive'}`} />}
-        />
+        {[
+          {
+            title: 'Total Turnover (Incl)',
+            value: formatMoneyPrecise(data.turnoverIncl, 2),
+            rawValue: data.turnoverIncl,
+            subtitle: `Excl Tax: ${formatMoneyPrecise(data.turnoverExcl, 2)}`,
+            icon: <DollarSign className="h-5 w-5 text-primary" />,
+            metricName: 'Total Turnover',
+          },
+          {
+            title: 'Cost of Sales',
+            value: formatMoneyPrecise(data.costOfSales, 2),
+            rawValue: data.costOfSales,
+            subtitle: `${data.costOfSalesPercent.toFixed(2)}% of sales`,
+            variant: 'warning',
+            icon: <TrendingDown className="h-5 w-5 text-warning" />,
+            metricName: 'Cost of Sales',
+          },
+            {
+            title: 'Net Profit',
+            value: formatMoneyPrecise(data.netProfit, 2),
+            rawValue: data.netProfit,
+            subtitle: `Expenses: ${formatMoneyPrecise(data.expenses, 2)}`,
+            variant: data.netProfit >= 0 ? 'success' : 'danger',
+            icon: <DollarSign className={`h-5 w-5 ${data.netProfit >= 0 ? 'text-success' : 'text-destructive'}`} />,
+            metricName: 'Net Profit',
+          },
+        ].map((kpi) => (
+          <div key={kpi.title} className="relative">
+            <KPICard
+              title={kpi.title}
+              value={kpi.value}
+              loading={isLoading}
+              subtitle={kpi.subtitle}
+              variant={kpi.variant as any}
+              icon={kpi.icon}
+            />
+            <button
+              className="absolute top-2 right-2 rounded px-2 py-1 text-xs border border-secondary text-secondary hover:bg-secondary/10"
+              onClick={() => downloadMetricCsv(kpi.metricName, kpi.rawValue, dashboardReport)}
+              title={`Export ${kpi.metricName}`}
+            >
+              Export
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* Secondary KPIs */}
@@ -557,18 +646,27 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {topVariances.map((item) => (
-                    <TableRow key={item.id} className="border-b-white/10">
-                      <TableCell className="font-medium">{item.itemName}</TableCell>
-                      <TableCell className="text-right">
-                        <NumericCell value={item.varianceQty} showSign colorCode />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <NumericCell value={item.varianceValue} money showSign colorCode />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!topVariances.length && (
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, idx) => (
+                      <TableRow key={`variance-loading-${idx}`} className="border-b-white/10 animate-pulse">
+                        <TableCell className="font-medium"><div className="h-4 w-24 bg-muted/20 rounded" /></TableCell>
+                        <TableCell className="text-right"><div className="h-4 w-10 bg-muted/20 rounded ml-auto" /></TableCell>
+                        <TableCell className="text-right"><div className="h-4 w-16 bg-muted/20 rounded ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : topVariances.length ? (
+                    topVariances.map((item) => (
+                      <TableRow key={item.id} className="border-b-white/10">
+                        <TableCell className="font-medium">{item.itemName}</TableCell>
+                        <TableCell className="text-right">
+                          <NumericCell value={item.varianceQty} showSign colorCode />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <NumericCell value={item.varianceValue} money showSign colorCode />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow className="border-b-white/10">
                       <TableCell colSpan={3} className="text-sm text-muted-foreground">
                         No stock take saved for this period.
