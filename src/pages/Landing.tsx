@@ -8,6 +8,8 @@ export default function Landing() {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
 
+  const isNativeApp = typeof window !== 'undefined' && Boolean((window as any).electron);
+
   const getDefaultAppRouteForRole = (role: string | undefined) => {
     if (role === 'kitchen_staff') return '/app/pos/kitchen';
     if (role === 'waitron' || role === 'bar_staff') return '/app/pos/terminal';
@@ -46,6 +48,24 @@ export default function Landing() {
           Powerful, modern point‑of‑sale built on a database-first platform. Get up and
           running in minutes, manage inventory, staff and sales with confidence.
         </p>
+
+        {!isNativeApp && (
+          <div className="mb-6 rounded-lg border border-white/20 bg-white/10 p-4 text-left">
+            <h2 className="text-lg font-semibold text-white">Install native POS app</h2>
+            <p className="text-sm text-gray-300 mb-2">
+              For the best performance and silent printing, install the native desktop version.
+            </p>
+            <a
+              href="https://your-download-url.example.com"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block px-4 py-2 bg-primary text-white rounded-lg"
+            >
+              Download App
+            </a>
+          </div>
+        )}
+
         <button
           className="inline-block px-10 py-4 bg-primary hover:bg-primary-dark rounded-lg text-white font-semibold shadow-lg transition-colors duration-200"
           onClick={() => setShowLogin(true)}

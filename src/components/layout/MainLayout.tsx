@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import LowStockAlerts from '@/components/common/LowStockAlerts';
+import SyncStatusIndicator from '@/components/layout/SyncStatusIndicator';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -33,7 +34,10 @@ export function MainLayout() {
 
   if (isPosTerminal || isSelfOrder || isKitchenDisplay) {
     return (
-      <div className="min-h-screen w-full bg-background">
+      <div className="min-h-screen w-full bg-background relative">
+        <div className="absolute top-3 right-3 z-50">
+          <SyncStatusIndicator />
+        </div>
         <Outlet />
       </div>
     );
@@ -57,6 +61,7 @@ export function MainLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-2">
+              <SyncStatusIndicator />
               <CurrencyPicker className="hidden sm:block" />
               <LowStockAlerts />
               {/* User Menu */}

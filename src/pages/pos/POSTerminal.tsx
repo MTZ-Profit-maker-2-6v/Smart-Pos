@@ -81,6 +81,26 @@ export default function POSTerminal() {
     prevReadyRef.current = readyIds;
   }, [orders, toast]);
 
+  // Online/offline status toast and internal state.
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({ title: 'Online', description: 'Internet connection restored.', variant: 'success' });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({ title: 'Offline', description: 'Internet disconnected. Orders will queue locally and sync later.', variant: 'destructive' });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
+
   // Also listen for BroadcastChannel notifications from the kitchen (fast local notify)
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
@@ -112,6 +132,15 @@ export default function POSTerminal() {
   }, [toast]);
 
   const ALL_CATEGORY_ID = 'all';
+
+  useEffect(() => {
+    if (menu.items.length > 0 || orders.length > 0) {
+      setIsLoading(false);
+    } else {
+      const timer = window.setTimeout(() => setIsLoading(false), 1800);
+      return () => window.clearTimeout(timer);
+    }
+  }, [menu.items.length, orders.length]);
   const categoriesWithAll = useMemo(
     () => [{ id: ALL_CATEGORY_ID, name: 'All', sortOrder: -999, color: 'bg-slate-500' }, ...categories],
     [categories]
@@ -345,6 +374,7 @@ export default function POSTerminal() {
   }, [isCashier, user?.id]);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [orderDiscountPercent, setOrderDiscountPercent] = useState(0);
   const [couponCode, setCouponCode] = useState('');
@@ -875,6 +905,9 @@ export default function POSTerminal() {
   };
   
   const handleSendToKitchen = async () => {
+    if (!isOnline) {
+      toast({ title: 'No Internet', description: 'You are offline. Send-to-kitchen requests will sync when connection returns.', variant: 'warning' });
+    }
     try {
       await applyRecipeDeductionsOrThrow();
 
@@ -909,6 +942,10 @@ export default function POSTerminal() {
   };
   
   const handlePaymentComplete = async (method: PaymentMethod) => {
+    if (!isOnline) {
+      toast({ title: 'No Internet', description: 'You are offline. The payment order will be synced once online.', variant: 'warning' });
+    }
+
     try {
       await applyRecipeDeductionsOrThrow();
 
@@ -973,6 +1010,18 @@ export default function POSTerminal() {
     }
   };
   
+  if (isLoading) {
+    return (
+      <div className="h-screen p-3 pos-light flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary/60 border-opacity-30 mx-auto" />
+          <p className="mt-4 text-lg font-semibold">Loading menu & orders...</p>
+          <p className="text-sm text-muted-foreground">Please wait a moment while data is retrieved.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen p-3 pos-light">
       <div className="h-full rounded-2xl border bg-background overflow-auto lg:overflow-hidden overscroll-contain">

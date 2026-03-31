@@ -1,0 +1,20 @@
+directories:
+  output: release
+  buildResources: assets
+appId: com.mtlabs.rcdigital.profitmakerpos
+productName: Profit Maker POS
+artifactName: ProfitMakerPOS-${version}-${platform}-${arch}.${ext}
+files:
+  - filter:
+      - dist/**
+      - electron/**
+win:
+  target:
+    - nsis
+    - portable
+  requestedExecutionLevel: highestAvailable
+mac:
+  target:
+    - dmg
+    - zip
+electronVersion: 27.3.11

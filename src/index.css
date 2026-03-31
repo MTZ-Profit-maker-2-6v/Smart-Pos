@@ -211,6 +211,11 @@ body {
 }
 
 @media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -221,11 +226,42 @@ body {
   }
 
   .print-area {
-    position: fixed;
+    position: relative;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 72mm; /* Typical 80mm paper width minus margins; adjusts for thermal format */
+    max-width: 72mm;
+    min-width: 72mm;
+    padding: 8px;
     border: none !important;
     box-shadow: none !important;
+    background: #ffffff;
+    color: #000000;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .print-area h2,
+  .print-area h3,
+  .print-area h4 {
+    font-size: 12px;
+    margin: 0;
+  }
+
+  .print-area .text-lg {
+    font-size: 13px !important;
+  }
+
+  .print-area .text-sm {
+    font-size: 10px !important;
+  }
+
+  .print-area .text-xs {
+    font-size: 9px !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0;
   }
 }
