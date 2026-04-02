@@ -12,6 +12,7 @@ win:
   target:
     - nsis
     - portable
+  icon: build/icon.ico
   requestedExecutionLevel: highestAvailable
 mac:
   target:

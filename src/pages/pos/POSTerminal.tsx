@@ -136,10 +136,10 @@ export default function POSTerminal() {
   useEffect(() => {
     if (menu.items.length > 0 || orders.length > 0) {
       setIsLoading(false);
-    } else {
-      const timer = window.setTimeout(() => setIsLoading(false), 1800);
-      return () => window.clearTimeout(timer);
+      return;
     }
+    const timer = window.setTimeout(() => setIsLoading(false), 4000);
+    return () => window.clearTimeout(timer);
   }, [menu.items.length, orders.length]);
   const categoriesWithAll = useMemo(
     () => [{ id: ALL_CATEGORY_ID, name: 'All', sortOrder: -999, color: 'bg-slate-500' }, ...categories],
@@ -1596,17 +1596,29 @@ export default function POSTerminal() {
             {/* Menu Grid */}
             <ScrollArea className="flex-1">
               <div className="p-3">
-                {items.length <= 1 && (
+                {items.length === 0 ? (
                   <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                    <div className="font-medium">Only {items.length} menu item found.</div>
+                    <div className="font-medium">Loading menu items...</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Go to POS Menu to add items, or reset to defaults.
+                      Fetching items from cloud. Please wait a few seconds.
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="h-24 rounded-lg border border-muted/50 bg-slate-700/30 animate-pulse" />
+                      ))}
+                    </div>
+                  </div>
+                ) : items.length === 1 ? (
+                  <div className="mb-3 rounded-lg border bg-muted/30 p-3 text-sm">
+                    <div className="font-medium">Only one menu item found.</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Add more items in POS Menu for a complete selection.
                     </div>
                     <div className="mt-2 flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => navigate('/pos/menu')}>Open POS Menu</Button>
                     </div>
                   </div>
-                )}
+                ) : null}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {filteredItems.map(item => (
                     <MenuItemCard key={item.id} item={item} onAdd={addItem} />

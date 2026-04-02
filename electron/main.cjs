@@ -1,30 +1,16 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
-const isDev = process.env.NODE_ENV !== 'production';
 let mainWindow = null;
 
 function createWindow() {
-  const splash = new BrowserWindow({
-    width: 420,
-    height: 320,
-    frame: false,
-    alwaysOnTop: true,
-    transparent: true,
-    skipTaskbar: true,
-    resizable: false,
-    movable: false,
-    show: true,
-  });
-  splash.loadFile(path.join(__dirname, 'splash.html'));
-
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 768,
     kiosk: true,
     autoHideMenuBar: true,
     show: false,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#0a0a0a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -33,19 +19,35 @@ function createWindow() {
   });
 
   const loadMain = async () => {
-    if (isDev) {
+    if (!app.isPackaged) {
       await mainWindow.loadURL('http://localhost:5173');
     } else {
-      await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      await mainWindow.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'));
     }
   };
 
   mainWindow.once('ready-to-show', () => {
-    if (splash) {
-      splash.close();
-    }
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.show();
   });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!mainWindow.isVisible()) mainWindow.show();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.warn('Main window failed to load', { errorCode, errorDescription, validatedURL });
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.setBackgroundColor('#0a0a0a');
+    if (!mainWindow.isVisible()) mainWindow.show();
+  });
+
+  // fallback in case the renderer takes too long
+  setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!mainWindow.isVisible()) mainWindow.show();
+  }, 10000);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -53,8 +55,7 @@ function createWindow() {
 
   loadMain().catch((err) => {
     console.error('Failed to load main window', err);
-    if (splash) splash.close();
-    if (mainWindow) mainWindow.show();
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
   });
 }
 

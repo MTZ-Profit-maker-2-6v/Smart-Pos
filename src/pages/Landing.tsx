@@ -20,11 +20,26 @@ export default function Landing() {
   const [slideIndex, setSlideIndex] = useState(0);
   const isNativeApp = typeof window !== 'undefined' && Boolean((window as any).electron);
 
+  const tipMessages = [
+    "Pro Tip: Use quick categories to speed order entry during peak hours.",
+    "Pro Tip: Shift reports are clearer if you close shifts before day end.",
+    "Pro Tip: Inventory alerts prevent stockouts—review nightly.",
+    "Pro Tip: Enable offline sync so orders continue even if connectivity drops.",
+  ];
+  const [tipIndex, setTipIndex] = useState(0);
+
   const getDefaultAppRouteForRole = (role: string | undefined) => {
     if (role === 'kitchen_staff') return '/app/pos/kitchen';
     if (role === 'waitron' || role === 'bar_staff') return '/app/pos/terminal';
     return '/app/pos';
   };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % tipMessages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -84,7 +99,11 @@ export default function Landing() {
             </div>
 
             <div className="mx-auto mt-5 max-w-xl rounded-xl border border-white/10 bg-white/10 p-4 text-sm text-gray-100">
-              <strong className="font-semibold">Default: today's view</strong> — switch the date range to see historical reports, top sellers, and variance insights.
+              <div className="flex items-center justify-between gap-2">
+                <strong className="font-semibold">Quick Tip</strong>
+                <span className="text-xs uppercase tracking-wider text-amber-200">{tipIndex + 1}/{tipMessages.length}</span>
+              </div>
+              <p className="mt-1">{tipMessages[tipIndex]}</p>
             </div>
           </div>
         </div>
