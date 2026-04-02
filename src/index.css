@@ -205,6 +205,43 @@
   @apply text-sm text-muted-foreground;
 }
 
+.neon-snake-border {
+  position: relative;
+  border-radius: 1rem;
+  padding: 2px; /* to keep the neon stroke visible without clipping */
+}
+
+.neon-snake-border .neon-snake-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.neon-snake-border .neon-snake-rect {
+  stroke-dasharray: 840;
+  stroke-dashoffset: 0;
+  transform-origin: center;
+  animation:
+    snake-flow 2.4s linear infinite,
+    snake-pulse 2s ease-in-out infinite;
+  filter:
+    drop-shadow(0 0 12px rgba(255, 180, 30, 0.85))
+    drop-shadow(0 0 20px rgba(255, 120, 40, 0.6));
+}
+
+@keyframes snake-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -840; }
+}
+
+@keyframes snake-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 body {
   @apply bg-background text-foreground;
   font-feature-settings: "rlig" 1, "calt" 1;

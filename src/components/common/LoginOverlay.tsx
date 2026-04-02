@@ -130,13 +130,40 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="absolute inset-0 bg-slate-900/70" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white text-black rounded-2xl shadow-2xl p-6 border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md neon-snake-border">
+        <svg className="neon-snake-svg absolute inset-0 h-full w-full pointer-events-none" viewBox="0 0 400 420" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="neon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="rgba(255,180,0,0.95)" />
+              <stop offset="45%" stopColor="rgba(255,90,10,0.95)" />
+              <stop offset="100%" stopColor="rgba(255,170,60,0.95)" />
+            </linearGradient>
+          </defs>
+          <rect
+            x="4"
+            y="4"
+            width="392"
+            height="412"
+            rx="24"
+            ry="24"
+            fill="none"
+            stroke="url(#neon-gradient)"
+            strokeWidth="4"
+            className="neon-snake-rect"
+          />
+        </svg>
+
+        <div className="relative z-10 rounded-3xl border border-orange-600/40 bg-black/80 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.75)]">
         {onClose && (
           <button
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+            className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-gray-100 transition hover:bg-white/20"
             onClick={onClose}
+            aria-label="Close login"
           >
             ✕
           </button>
@@ -144,14 +171,14 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
         <form onSubmit={submitLogin} className="space-y-4">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Smart POS Login</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className="text-lg font-bold text-white">Smart POS Access</h2>
+                <p className="text-xs text-orange-200">
                   {mode === 'admin'
-                    ? 'Sign in as an owner or manager to access the back office.'
-                    : 'Staff use email and PIN to jump straight into the till.'}
+                    ? 'Owner/manager access for menu, pricing, and shift control.'
+                    : 'Staff use email + PIN for quick till operations.'}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-medium text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-3 py-1 text-[11px] font-medium text-orange-100">
                 {mode === 'admin' ? <UserCog className="h-3.5 w-3.5" /> : <UserCircle2 className="h-3.5 w-3.5" />}
                 {mode === 'admin' ? 'Admin mode' : 'Staff mode'}
               </span>
@@ -167,8 +194,8 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
                 disabled={busy}
                 className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 font-medium transition-colors ${
                   mode === 'admin'
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'bg-orange-500 text-black border-orange-400 shadow-lg'
+                    : 'bg-[#111] text-orange-300 border-orange-500/30 hover:bg-[#222]'
                 }`}
               >
                 <UserCog className="h-4 w-4" />
@@ -187,8 +214,8 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
                 disabled={busy}
                 className={`flex items-center justify-center gap-2 rounded-md border px-3 py-2 font-medium transition-colors ${
                   mode === 'staff'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'bg-orange-500 text-black border-orange-400 shadow-lg'
+                    : 'bg-[#111] text-orange-300 border-orange-500/30 hover:bg-[#222]'
                 }`}
               >
                 <UserCircle2 className="h-4 w-4" />
@@ -213,7 +240,7 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
                   <h3 className="text-lg font-semibold mb-2">Account created</h3>
                   <p className="mb-4">Your account was created successfully. Please sign in.</p>
                   <div className="flex justify-center">
-                    <button type="button" className="px-4 py-2 bg-primary text-white rounded" onClick={() => setShowSuccess(false)}>OK</button>
+                    <button type="button" className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-700 text-black font-semibold rounded-md shadow-lg" onClick={() => setShowSuccess(false)}>OK</button>
                   </div>
                 </div>
               </div>
@@ -230,22 +257,22 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
                   />
                 </div>
               )}
-              <label className="block text-sm font-medium mb-1">Email</label>
+              <label className="block text-sm font-medium mb-1 text-orange-200">Email</label>
               <input
                 type="email"
                 required
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-orange-500/40 bg-[#111] text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             {mode === 'admin' ? (
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">Password</label>
+                <label className="block text-sm font-medium mb-1 text-orange-200">Password</label>
                 <input
                   type="password"
                   required
-                  className="w-full border rounded px-3 py-2 text-black"
+                  className="w-full border border-orange-500/40 bg-[#111] text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -266,13 +293,13 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
               </div>
             ) : (
               <div>
-                <label className="block text-sm font-medium mb-1 text-black">PIN</label>
+                <label className="block text-sm font-medium mb-1 text-orange-200">PIN</label>
                 <input
                   type="password"
                   inputMode="numeric"
                   maxLength={4}
                   required
-                  className="w-full border rounded px-3 py-2 text-black"
+                  className="w-full border border-orange-500/40 bg-[#111] text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   value={pin}
                   onChange={(e) => {
                     const next = (e.target.value ?? '').replace(/\D/g, '').slice(0, 4);
@@ -287,7 +314,7 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
               <button
                 type="submit"
                 disabled={busy || (isSignup && passwordErrors.length > 0)}
-                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-700 text-black font-semibold rounded-md shadow-lg hover:brightness-110 disabled:opacity-50"
               >
                 {busy
                   ? (mode === 'admin' ? (isSignup ? 'Creating…' : 'Signing…') : 'Signing…')
@@ -298,12 +325,12 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
               {mode === 'admin' && isSignup ? (
                 <>
                   <span>Already have an account? </span>
-                  <button type="button" onClick={() => setIsSignup(false)} className="text-primary underline">Sign in</button>
+                  <button type="button" onClick={() => setIsSignup(false)} className="text-orange-300 underline">Sign in</button>
                 </>
               ) : mode === 'admin' ? (
                 <>
                   <span>Need an account? </span>
-                  <button type="button" onClick={() => setIsSignup(true)} className="text-primary underline">Create one</button>
+                  <button type="button" onClick={() => setIsSignup(true)} className="text-orange-300 underline">Create one</button>
                 </>
               ) : (
                 <>
@@ -313,6 +340,7 @@ export default function LoginOverlay({ onClose }: LoginOverlayProps) {
               )}
             </div>
           </form>
+        </div>
       </div>
     </div>
   );

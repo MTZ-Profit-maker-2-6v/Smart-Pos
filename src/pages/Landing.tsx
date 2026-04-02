@@ -1,77 +1,93 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import LoginOverlay from '@/components/common/LoginOverlay';
+
+import landing3 from '../../assets/landing3.png';
+import landing4 from '../../assets/landing4.png';
+import landing6 from '../../assets/landing6.png';
+
+const heroSlides = [
+  landing3,
+  landing4,
+  landing6,
+];
 
 export default function Landing() {
   const { user, brand, loading } = useAuth();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
-
+  const [slideIndex, setSlideIndex] = useState(0);
   const isNativeApp = typeof window !== 'undefined' && Boolean((window as any).electron);
 
   const getDefaultAppRouteForRole = (role: string | undefined) => {
     if (role === 'kitchen_staff') return '/app/pos/kitchen';
     if (role === 'waitron' || role === 'bar_staff') return '/app/pos/terminal';
-    // cashier + everything else defaults to POS home
     return '/app/pos';
   };
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        if (!brand) {
-          navigate('/app/company-settings');
-        } else {
-          // Role-aware default landing after login
-          navigate(getDefaultAppRouteForRole(user.role));
-        }
-      }
+    if (!loading && user) {
+      if (!brand) navigate('/app/company-settings');
+      else navigate(getDefaultAppRouteForRole(user.role));
     }
   }, [user, brand, loading, navigate]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setSlideIndex((s) => (s + 1) % heroSlides.length), 7000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const backgroundImage = useMemo(() => `url(${heroSlides[slideIndex]})`, [slideIndex]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary/60 border-opacity-30" />
+      <div className="min-h-screen flex items-center justify-center bg-black text-white"> 
+        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary/60" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-gray-900 to-black text-white px-4">
-      <div className="text-center max-w-2xl">
-        <h1 className="text-6xl font-extrabold mb-6 leading-tight">
-          Profit Maker
-        </h1>
-        <p className="mb-8 text-xl text-gray-300">
-          Powerful, modern point‑of‑sale built on a database-first platform. Get up and
-          running in minutes, manage inventory, staff and sales with confidence.
-        </p>
+    <div className="relative min-h-screen overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
+        style={{ backgroundImage }}
+      />
+      <div className="absolute inset-0 bg-black/25 backdrop-blur-none" />
 
-        {!isNativeApp && (
-          <div className="mb-6 rounded-lg border border-white/20 bg-white/10 p-4 text-left">
-            <h2 className="text-lg font-semibold text-white">Install native POS app</h2>
-            <p className="text-sm text-gray-300 mb-2">
-              For the best performance and silent printing, install the native desktop version.
-            </p>
-            <a
-              href="https://your-download-url.example.com"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-block px-4 py-2 bg-primary text-white rounded-lg"
-            >
-              Download App
-            </a>
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-16 text-white">
+        <div className="w-full max-w-3xl rounded-3xl border border-white/10 bg-black/40 p-10 shadow-2xl backdrop-blur-lg">
+          <div className="flex flex-col gap-6 text-center">
+            <p className="text-xs tracking-widest text-amber-200 uppercase">Restaurant POS for modern kitchens</p>
+            <h1 className="text-4xl sm:text-6xl font-black leading-tight">Profit Maker for Restaurants</h1>
+            <p className="text-base sm:text-xl text-gray-200">Streamline orders, inventory and tables with one powerful terminal. Offline-capable, data-driven and built strong for fast service.</p>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <button
+                className="rounded-lg bg-white px-8 py-3 text-sm font-semibold uppercase tracking-wide text-black shadow-2xl transition hover:bg-gray-100"
+                onClick={() => setShowLogin(true)}
+              >
+                Get Started
+              </button>
+
+              {!isNativeApp && (
+                <a
+                  href="https://your-download-url.example.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg bg-white px-8 py-3 text-sm font-semibold text-black shadow-lg transition hover:bg-gray-100"
+                >
+                  Download Desktop App
+                </a>
+              )}
+            </div>
+
+            <div className="mx-auto mt-5 max-w-xl rounded-xl border border-white/10 bg-white/10 p-4 text-sm text-gray-100">
+              <strong className="font-semibold">Default: today's view</strong> — switch the date range to see historical reports, top sellers, and variance insights.
+            </div>
           </div>
-        )}
-
-        <button
-          className="inline-block px-10 py-4 bg-primary hover:bg-primary-dark rounded-lg text-white font-semibold shadow-lg transition-colors duration-200"
-          onClick={() => setShowLogin(true)}
-        >
-          Get Started
-        </button>
+        </div>
       </div>
 
       {showLogin && <LoginOverlay onClose={() => setShowLogin(false)} />}
