@@ -1,0 +1,227 @@
+./LogFiles/webssh:
+
+./services:
+locks
+
+./services/locks:
+deploymentMonitor.lock
+
+./site:
+build  config  deployments  locks  repository  wwwroot
+
+./site/build:
+
+./site/config:
+restartTrigger.txt
+
+./site/deployments:
+23325b91-0127-4944-9fa8-e1ffa63c5eb1  active  d5c3f559-9ea2-4748-97de-49b66825c6ed  pending  tools
+
+./site/deployments/23325b91-0127-4944-9fa8-e1ffa63c5eb1:
+log.log  manifest  status.xml
+
+./site/deployments/d5c3f559-9ea2-4748-97de-49b66825c6ed:
+log.log  manifest  status.xml
+
+./site/deployments/tools:
+
+./site/locks:
+hooks.lock  status.lock
+
+./site/repository:
+
+./site/wwwroot:
+README.md         cd.md             hostingstart.html    package-lock.json  scripts             tsconfig.app.json
+assets            components.json   index.html           package.json       server.js           tsconfig.json
+build             dist              node_modules         postcss.config.js  src                 tsconfig.node.json
+build-output.txt  electron          node_modules.tar.gz  public             supabase            vite.config.ts
+cd                eslint.config.js  oryx-manifest.toml   release            tailwind.config.ts  vitest.config.ts
+
+./site/wwwroot/assets:
+landing2.png  landing3.png  landing4.png  landing5.png  landing6.png  landing_page.png  profit-maker-pos-icon.svg
+
+./site/wwwroot/build:
+icon-128.png  icon-16.png  icon-256.png  icon-32.png  icon-48.png  icon-64.png  icon.ico
+
+./site/wwwroot/dist:
+assets       icon.svg    manifest.webmanifest  placeholder.svg  robots.txt         sw.js
+favicon.ico  index.html  menu                  registerSW.js    service-worker.js  workbox-8ead268c.js
+
+./site/wwwroot/dist/assets:
+CashUp-G3cURqUE.js           TransferQR-BYMaZkcS.js       landing3-B9V3AD16.png               smartphone-Dmk3BxfK.js
+KitchenDisplay-DfOt_5N-.js   html2canvas.esm-CYkBLDhY.js  landing4-DWZWSCHq.png               useKitchenRealtime-sAFOwxYP.js
+MenuManager-3YtDz21Z.js      index-CEp3V1Tp.js            landing6-CrxFdGUh.png
+POSTerminal-BVrRT6GH.js      index-DLjas6Sy.css           posPaymentRequestStore-CZ-_0s2n.js
+TableManagement-CI38KPm7.js  index.es-Dvs-5CXL.js         purify.es-C5KSVp3G.js
+
+./site/wwwroot/dist/menu:
+placeholder-burger.svg  placeholder-dessert.svg  placeholder-drink.svg
+
+./site/wwwroot/electron:
+main.cjs  main.js  main.ts  preload.cjs  preload.js  preload.ts  splash.html
+
+./site/wwwroot/public:
+favicon.ico  icon.svg  manifest.webmanifest  menu  placeholder.svg  robots.txt  service-worker.js
+
+./site/wwwroot/public/menu:
+placeholder-burger.svg  placeholder-dessert.svg  placeholder-drink.svg
+
+./site/wwwroot/release:
+builder-effective-config.yaml
+
+./site/wwwroot/scripts:
+build-icon.cjs  build-icon.js  run_migration.ps1
+
+./site/wwwroot/src:
+App.css  components  data    hooks      lib       pages  test   vite-env.d.ts
+App.tsx  contexts    guards  index.css  main.tsx  pwa    types
+
+./site/wwwroot/src/components:
+NavLink.tsx  auth  common  intelligence  layout  pos  qr  security  ui  variance
+
+./site/wwwroot/src/components/auth:
+RequirePermission.tsx
+
+./site/wwwroot/src/components/common:
+CurrencyPicker.tsx   InstallPrompt.tsx  LowStockAlerts.tsx  ProtectedRoute.tsx    RequireAuth.tsx  WelcomeGate.tsx
+DevOriginNotice.tsx  LoginOverlay.tsx   PageComponents.tsx  ReportSharerDemo.tsx  RoleGateway.tsx
+
+./site/wwwroot/src/components/intelligence:
+AnalysisDialog.tsx  NeonWidgetFrame.tsx  PurpleDashboardLayout.tsx  WidgetFrame.tsx  widgets
+
+./site/wwwroot/src/components/intelligence/widgets:
+AreaChartWidget.tsx  DonutChartWidget.tsx         KpiStripWidget.tsx         PredictiveInventoryWidget.tsx
+AutopilotWidget.tsx  FilterWidget.tsx             MenuEngineeringWidget.tsx  StaffEfficiencyWidget.tsx
+BarChartWidget.tsx   GoldenHourHeatmapWidget.tsx  MoneyFlowSankeyWidget.tsx
+
+./site/wwwroot/src/components/layout:
+AppSidebar.tsx  Breadcrumbs.tsx  MainLayout.tsx  SyncStatusIndicator.tsx
+
+./site/wwwroot/src/components/pos:
+CategoryRail.tsx            InteractiveFloorPlan.tsx  PaymentDialog.tsx       ShiftCashUp.tsx
+GlobalReceiptGenerator.tsx  MenuItemCard.tsx          ReceiptPrintDialog.tsx  ZRAInvoice.tsx
+
+./site/wwwroot/src/components/qr:
+QrScanner.tsx
+
+./site/wwwroot/src/components/security:
+ManagerOverrideDialog.tsx  SecurityAuditLog.tsx
+
+./site/wwwroot/src/components/ui:
+accordion.tsx     button.tsx       command.tsx        input-otp.tsx        progress.tsx     sidebar.tsx   textarea.tsx
+alert-dialog.tsx  calendar.tsx     context-menu.tsx   input.tsx            radio-group.tsx  skeleton.tsx  toast.tsx
+alert.tsx         card.tsx         dialog.tsx         label.tsx            resizable.tsx    slider.tsx    toaster.tsx
+aspect-ratio.tsx  carousel.tsx     drawer.tsx         menubar.tsx          scroll-area.tsx  sonner.tsx    toggle-group.tsx
+avatar.tsx        chart.tsx        dropdown-menu.tsx  navigation-menu.tsx  select.tsx       switch.tsx    toggle.tsx
+badge.tsx         checkbox.tsx     form.tsx           pagination.tsx       separator.tsx    table.tsx     tooltip.tsx
+breadcrumb.tsx    collapsible.tsx  hover-card.tsx     popover.tsx          sheet.tsx        tabs.tsx      use-toast.ts
+
+./site/wwwroot/src/components/variance:
+ActualUsageInput.tsx  LossLeaderReport.tsx
+
+./site/wwwroot/src/contexts:
+AuthContext.tsx  BrandingContext.tsx  CurrencyContext.tsx  TenantContext.tsx
+
+./site/wwwroot/src/data:
+auditLogData.ts  gaapMockData.ts  mockData.ts  posData.ts  posModifiers.ts  recipeEngineData.ts  taxData.ts
+
+./site/wwwroot/src/guards:
+SubscriptionGuard.tsx
+
+./site/wwwroot/src/hooks:
+use-mobile.tsx      useKitchenRealtime.ts   useOfflineSync.ts   usePosMenuImage.ts      useSecurityAuditor.ts
+use-toast.ts        useManagerOverride.ts   useOnlineStatus.ts  useProfitProtection.ts
+useIntelligence.ts  useOfflineOrderSync.ts  usePosMenu.ts       useReportSharer.ts
+
+./site/wwwroot/src/lib:
+activeBrand.ts           download.ts              manufacturingRecipeStore.ts  purchaseCosting.ts         stockStore.ts
+authCache.ts             exchangeRateService.ts   mthunziSmartAssistant.ts     purchasePlanner.ts         stockTakeStore.ts
+batchProductionStore.ts  expenseStore.ts          offlineOrderQueue.ts         qr.ts                      supabaseClient.ts
+brandService.ts          featureFlagsStore.ts     offlineVault.ts              receiptSettingsService.ts  suppliersStore.ts
+cashUpStore.ts           gaapCosting.ts           opsLinks.ts                  recipeEngine.ts            systemAuditLog.ts
+categoriesStore.ts       gaapStore.ts             opsPdf.ts                    recipeExplosion.ts         taxEngine.ts
+color.ts                 grvDbStore.ts            orderStore.ts                safeQuery.ts               taxService.ts
+companySettingsStore.ts  grvStore.ts              posMenuImages.ts             shiftStore.ts              userPreferences.ts
+crudDelete.ts            idbKv.ts                 posMenuStore.ts              smartMenuSearch.ts         utils.ts
+dashboardMetrics.ts      intelligence             posNotificationStore.ts      smartReceiptQr.ts          zraExport.ts
+db.ts                    intelligenceInsights.ts  posPaymentRequestStore.ts    staffStore.ts              zraUtils.ts
+debugLog.ts              kitchenStore.ts          predictiveInventory.ts       stockIssueStore.ts
+
+./site/wwwroot/src/lib/intelligence:
+cleanRestaurantData.ts
+
+./site/wwwroot/src/pages:
+ AuditDashboard.tsx    Index.tsx                   Purchases.tsx                       TaxEngineDemo.tsx   pos
+ AuthCallback.tsx      IntelligenceWorkspace.tsx   Reports.tsx                         ZRATaxSeason.tsx    security
+ AuthPage.tsx          Landing.tsx                'Screenshot 2026-03-28 111256.png'   inventory           variance
+ CompanySettings.tsx   ManagementDashboard.tsx     Settings.tsx                        manufacturing
+ Dashboard.tsx         NotFound.tsx                Staff.tsx                           onboarding
+
+./site/wwwroot/src/pages/inventory:
+AdvancedGAAP.tsx  InventoryManager.tsx  StockIssues.tsx  StockItems.tsx  StockTake.tsx  TransferQR.tsx
+
+./site/wwwroot/src/pages/manufacturing:
+BatchProduction.tsx  BatchProductionManager.tsx  Recipes.tsx
+
+./site/wwwroot/src/pages/onboarding:
+CreateBrand.tsx
+
+./site/wwwroot/src/pages/pos:
+CashUp.tsx             KitchenDisplay.tsx  POSTerminal.tsx  TableManagement.tsx  ZRAInvoiceDemo.tsx
+GlobalReceiptDemo.tsx  MenuManager.tsx     SelfOrder.tsx    TableQrCodes.tsx
+
+./site/wwwroot/src/pages/security:
+SecurityDemo.tsx
+
+./site/wwwroot/src/pages/variance:
+ProfitProtectionDemo.tsx
+
+./site/wwwroot/src/pwa:
+registerServiceWorker.ts
+
+./site/wwwroot/src/test:
+example.test.ts  setup.ts
+
+./site/wwwroot/src/types:
+Transaction.ts  auth.ts  company.ts  electron.d.ts  erp.ts  gaap.ts  index.ts  pos.ts  security.ts  variance.ts  zra.ts
+
+./site/wwwroot/supabase:
+migrations
+
+./site/wwwroot/supabase/migrations:
+001_create_company_settings.sql                     2026-02-21-handle-stock-deductions.sql
+002_create_brands_table.sql                         2026-02-21-make-manufacturing-recipes-independent.sql
+003_create_staff_table.sql                          2026-02-22-recreate-manufacturing-recipes.sql
+004_rls_policies.sql                                2026-02-22-set-products-base-price-default.sql
+004_staff_allow_null_brand.sql                      2026-02-23-apply-recipe-batch-deduction.sql
+005_add_staff_full_name.sql                         2026-02-23-backfill-units.sql
+006_fix_staff_trigger.sql                           2026-02-23-preview-stock-deductions.sql
+007_drop_staff_trigger.sql                          2026-02-24-add-kitchen-columns-to-pos_order_items.sql
+008_add_brand_type.sql                              2026-02-24-add-requires-preparation-to-pos_menu_items.sql
+009_add_branding_logos_storage_policy.sql           2026-02-24-enable-kds-rls.sql
+010_create_under_brand_staff_table.sql              2026-02-24-permissive-kds-rls.sql
+011_under_brand_staff_login_rpc.sql                 2026-03-26-create-batch-productions-table.sql
+012_create_cashier_shifts_table.sql                 2026-03-28-create_stock_issue.sql
+013_cashier_shift_rpcs.sql                          2026-03-28-insert_stock_issue_rpc.sql
+014_create_pos_notifications.sql                    2026-03-28-process_stock_issue_rpc.sql
+014_harden_cashier_shift_lookup.sql                 2026-03-29-check_stock_permissions.sql
+015_fix_cashier_shift_start_ambiguous_brand_id.sql  2026-03-29-drop_process_stock_issue.sql
+016_guard_stock_items_mutations.sql                 2026-03-29-grant_process_stock_issue_anon.sql
+017_create_grv_tables.sql                           2026-03-29-grant_stock_tables_to_anon.sql
+018_grv_rpcs.sql                                    2026-03-29-grant_stock_tables_to_authenticated.sql
+019_grv_business_rules.sql                          2026-03-29-grant_tables_to_authenticated.sql
+020_grv_create_rpc.sql                              2026-03-29-process_stock_issue_debug_rpc.sql
+020_stock_items_pack_size.sql                       2026-03-29-relax_guard_allow_price_updates.sql
+021_grv_force_delete_dev.sql                        2026-03-30-create_invoices.sql
+021_stock_takes.sql                                 2026-03-30-create_stock_takes-normalized.sql
+022_brand_id_indexes.sql                            2026-03-30-create_stock_takes.sql
+2026-02-20-add-manufacturing-recipes-metadata.sql   2026-03-30-create_stock_variances.sql
+2026-02-20-restaurant-tables.sql                    2026-03-30-get_dashboard_stats-fix.sql
+2026-02-21-add-code-to-products.sql                 2026-03-30-get_dashboard_stats-full.sql
+2026-02-21-add-department-to-products.sql           2026-03-30-get_dashboard_stats-v2.sql
+2026-02-21-alter-products-add-storage-image.sql     2026-03-30-get_dashboard_stats.sql
+2026-02-21-copy-departments-to-categories.sql       2026-04-01-restore_stock_take_tables.sql
+2026-02-21-create-clean-manufacturing-recipes.sql   20260128_0001_erp_schema.sql
+2026-02-21-drop-image-url-from-products.sql         pos_order_items_rows.sql
+2026-02-21-handle-order-stock-deduction.sql         pos_orders_rows.sql
+2026-02-21-handle-stock-deduction-product.sql
