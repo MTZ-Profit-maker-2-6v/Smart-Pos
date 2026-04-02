@@ -4,6 +4,10 @@ directories:
 appId: com.mtlabs.rcdigital.profitmakerpos
 productName: Profit Maker POS
 artifactName: ProfitMakerPOS-${version}-${platform}-${arch}.${ext}
+publish:
+  - provider: github
+    owner: MTZ-Profit-maker-2-6v
+    repo: Smart-Pos
 files:
   - filter:
       - dist/**
@@ -11,7 +15,6 @@ files:
 win:
   target:
     - nsis
-    - portable
   icon: build/icon.ico
   requestedExecutionLevel: highestAvailable
 mac:
