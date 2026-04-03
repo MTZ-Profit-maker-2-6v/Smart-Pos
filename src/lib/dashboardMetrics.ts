@@ -376,9 +376,31 @@ function computeStockVarianceFromTakes(stockTakes: StockTakeSession[], startDate
     .filter((s) => s.date >= startDate && s.date <= endDate)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
-  // Use the latest session in range as the variance report for the period.
-  const latest = inRange[0];
-  const items = latest?.variances ?? [];
+  // Aggregate all variance lines across the selected period so the dashboard
+  // reflects the full date range instead of only the latest stock take.
+  const aggregated = new Map<string, StockVariance>();
+  for (const session of inRange) {
+    for (const item of session.variances ?? []) {
+      const key = String(item.itemId || item.itemCode || item.id);
+      const existing = aggregated.get(key);
+      if (!existing) {
+        aggregated.set(key, { ...item });
+        continue;
+      }
+
+      aggregated.set(key, {
+        ...existing,
+        systemQty: round2(existing.systemQty + item.systemQty),
+        physicalQty: round2(existing.physicalQty + item.physicalQty),
+        varianceQty: round2(existing.varianceQty + item.varianceQty),
+        varianceValue: round2(existing.varianceValue + item.varianceValue),
+        timesHadVariance: Number(existing.timesHadVariance ?? 0) + Number(item.timesHadVariance ?? 0),
+        countDate: item.countDate || existing.countDate,
+      });
+    }
+  }
+
+  const items = Array.from(aggregated.values());
   const varianceValue = round2(sum(items.map((v) => v.varianceValue)));
 
   return {

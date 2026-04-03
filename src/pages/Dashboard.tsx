@@ -102,11 +102,13 @@ export default function Dashboard() {
   const today = useMemo(() => dateKeyLocal(new Date()), []);
   const [startDate, setStartDate] = useState<string>(today);
   const [endDate, setEndDate] = useState<string>(today);
+  const [showDateFilters, setShowDateFilters] = useState<boolean>(false);
   const fromInputRef = useRef<HTMLInputElement>(null);
   const toInputRef = useRef<HTMLInputElement>(null);
   const [dbSnapshot, setDbSnapshot] = useState<any | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const isTodayRange = startDate === endDate && startDate === today;
 
   const rangeLabel = useMemo(() => {
     if (startDate === endDate && startDate === today) {
@@ -161,54 +163,78 @@ export default function Dashboard() {
   // Keep all displayed metrics firmly bound to selected date range via the local computeDashboardMetrics result.
   const data = useMemo(() => metrics.overview, [metrics.overview]);
 
-  // Unified data state: prefer local metrics for date-range consistency.
-  const topSellers = metrics.topSellers;
-  const staffRows = metrics.staffRows;
-  const topVariances = metrics.varianceItems;
-  const lowSeller = metrics.lowSeller;
+  const displayData = useMemo(() => {
+    if (!dbSnapshot) return data;
 
-  const shouldUseDbSnapshot = Boolean(dbSnapshot && dbSnapshot.reportDate === endDate);
+    const normalizedPayment = dbSnapshot.paymentBreakdown && typeof dbSnapshot.paymentBreakdown === 'object'
+      ? dbSnapshot.paymentBreakdown
+      : null;
+
+    const hoursPerDay = Array.isArray(dbSnapshot.hoursPerDay) && dbSnapshot.hoursPerDay.length > 0
+      ? Number((dbSnapshot.hoursPerDay.reduce((sum: number, h: any) => sum + Number(h.total || 0), 0) / dbSnapshot.hoursPerDay.length).toFixed(1))
+      : Number(data.hoursPerDay ?? 0);
+
+    return {
+      ...data,
+      turnoverIncl: Number(dbSnapshot.turnoverIncl ?? dbSnapshot.turnover_incl ?? data.turnoverIncl ?? 0),
+      turnoverExcl: Number(dbSnapshot.turnoverExcl ?? dbSnapshot.turnover_excl ?? data.turnoverExcl ?? 0),
+      tax: Number(dbSnapshot.tax ?? data.tax ?? 0),
+      costOfSales: Number(dbSnapshot.costOfSales ?? dbSnapshot.cost_of_sales ?? data.costOfSales ?? 0),
+      costOfSalesPercent: Number(dbSnapshot.costOfSalesPercent ?? dbSnapshot.cost_of_sales_percent ?? data.costOfSalesPercent ?? 0),
+      grossProfit: Number(dbSnapshot.grossProfit ?? dbSnapshot.gross_profit ?? data.grossProfit ?? 0),
+      grossProfitPercent: Number(dbSnapshot.grossProfitPercent ?? dbSnapshot.gross_profit_percent ?? data.grossProfitPercent ?? 0),
+      expenses: Number(dbSnapshot.expenses ?? data.expenses ?? 0),
+      netProfit: Number(dbSnapshot.netProfit ?? dbSnapshot.net_profit ?? data.netProfit ?? 0),
+      invoiceCount: Number(dbSnapshot.invoiceCount ?? dbSnapshot.invoices_count ?? data.invoiceCount ?? 0),
+      customerCount: Number(dbSnapshot.customerCount ?? dbSnapshot.customer_count ?? data.customerCount ?? 0),
+      tableCount: Number(dbSnapshot.tableCount ?? dbSnapshot.table_count ?? data.tableCount ?? 0),
+      avgPerInvoice: Number(dbSnapshot.avgPerInvoice ?? dbSnapshot.avg_per_invoice ?? data.avgPerInvoice ?? 0),
+      tablesPerHour: Number(dbSnapshot.tablesPerHour ?? dbSnapshot.tables_per_hour ?? data.tablesPerHour ?? 0),
+      minsPerTable: Number(dbSnapshot.minsPerTable ?? dbSnapshot.mins_per_table ?? data.minsPerTable ?? 0),
+      hoursPerDay,
+      stockVarianceValue: Number(dbSnapshot.stockVarianceValue ?? dbSnapshot.stock_variance_value ?? data.stockVarianceValue ?? 0),
+      wastageValue: Number(dbSnapshot.wastageValue ?? dbSnapshot.wastage_value ?? data.wastageValue ?? 0),
+      cashTotal: Number(dbSnapshot.cashTotal ?? dbSnapshot.cash_total ?? normalizedPayment?.cash ?? data.cashTotal ?? 0),
+      chequeTotal: Number(dbSnapshot.chequeTotal ?? dbSnapshot.cheque_total ?? normalizedPayment?.cheque ?? data.chequeTotal ?? 0),
+      cardTotal: Number(dbSnapshot.cardTotal ?? dbSnapshot.card_total ?? normalizedPayment?.card ?? data.cardTotal ?? 0),
+      accountTotal: Number(dbSnapshot.accountTotal ?? dbSnapshot.account_total ?? normalizedPayment?.account ?? data.accountTotal ?? 0),
+      nonBankTotal: Number(dbSnapshot.nonBankTotal ?? dbSnapshot.non_bank_total ?? normalizedPayment?.non_bank ?? data.nonBankTotal ?? 0),
+      totalPaytypes: Number(dbSnapshot.totalPaytypes ?? dbSnapshot.total_paytypes ?? data.totalPaytypes ?? 0),
+      sessions: dbSnapshot.sessions ?? dbSnapshot.session_breakdown ?? data.sessions,
+      orderTypes: dbSnapshot.orderTypes ?? dbSnapshot.order_types ?? data.orderTypes,
+    };
+  }, [dbSnapshot, data]);
+
+  // Unified data state: prefer local metrics for date-range consistency.
+  const topSellers = dbSnapshot?.topSellers?.length ? dbSnapshot.topSellers : metrics.topSellers;
+  const staffRows = dbSnapshot?.staffRows?.length ? dbSnapshot.staffRows : metrics.staffRows;
+  const topVariances = dbSnapshot?.varianceItems?.length ? dbSnapshot.varianceItems : metrics.varianceItems;
+  const lowSeller = dbSnapshot?.lowSeller ?? metrics.lowSeller;
 
   const { shareDailyReport, downloadCsv, downloadDoc, shareViaWhatsApp, downloadMetricCsv } = useReportSharer();
 
   const paymentBreakdown = useMemo(() => {
-    if (shouldUseDbSnapshot && dbSnapshot?.paymentBreakdown && typeof dbSnapshot.paymentBreakdown === 'object') {
-      const cashTotal = Number(dbSnapshot.paymentBreakdown.cash || dbSnapshot.paymentBreakdown.cashTotal || 0);
-      const cardTotal = Number(dbSnapshot.paymentBreakdown.card || dbSnapshot.paymentBreakdown.cardTotal || 0);
-      const chequeTotal = Number(dbSnapshot.paymentBreakdown.cheque || dbSnapshot.paymentBreakdown.chequeTotal || 0);
-      const totalPaytypes = Object.values(dbSnapshot.paymentBreakdown).reduce((sum: number, v: any) => sum + Number(v || 0), 0);
-      return {
-        cashTotal,
-        cardTotal,
-        chequeTotal,
-        totalPaytypes: Number(totalPaytypes),
-      };
-    }
     return {
-      cashTotal: Number(data.cashTotal),
-      cardTotal: Number(data.cardTotal),
-      chequeTotal: Number(data.chequeTotal),
-      totalPaytypes: Number(data.totalPaytypes),
+      cashTotal: Number(displayData.cashTotal ?? 0),
+      cardTotal: Number(displayData.cardTotal ?? 0),
+      chequeTotal: Number(displayData.chequeTotal ?? 0),
+      totalPaytypes: Number(displayData.totalPaytypes ?? 0),
     };
-  }, [shouldUseDbSnapshot, dbSnapshot, data]);
+  }, [displayData]);
 
   const hoursPerDay = useMemo(() => {
-    if (shouldUseDbSnapshot && Array.isArray(dbSnapshot?.hoursPerDay) && dbSnapshot.hoursPerDay.length > 0) {
-      const total = dbSnapshot.hoursPerDay.reduce((sum: number, h: any) => sum + Number(h.total || 0), 0);
-      return Number((total / dbSnapshot.hoursPerDay.length).toFixed(1));
-    }
-    return data.hoursPerDay;
-  }, [shouldUseDbSnapshot, dbSnapshot, data.hoursPerDay]);
+    return Number(displayData.hoursPerDay ?? 0);
+  }, [displayData.hoursPerDay]);
 
-  const cashierShiftsByStaff = shouldUseDbSnapshot && Array.isArray(dbSnapshot?.cashierShiftsByStaff)
+  const cashierShiftsByStaff = Array.isArray(dbSnapshot?.cashierShiftsByStaff)
     ? dbSnapshot.cashierShiftsByStaff
     : [];
 
-  const cashierShiftCount = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftCount ?? 0) : 0;
-  const cashierShiftClosedCount = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftClosedCount ?? 0) : 0;
-  const cashierShiftOpeningTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftOpeningTotal ?? 0) : 0;
-  const cashierShiftClosingTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftClosingTotal ?? 0) : 0;
-  const cashierShiftVarianceTotal = shouldUseDbSnapshot ? Number(dbSnapshot?.cashierShiftVarianceTotal ?? 0) : 0;
+  const cashierShiftCount = Number(dbSnapshot?.cashierShiftCount ?? 0);
+  const cashierShiftClosedCount = Number(dbSnapshot?.cashierShiftClosedCount ?? 0);
+  const cashierShiftOpeningTotal = Number(dbSnapshot?.cashierShiftOpeningTotal ?? 0);
+  const cashierShiftClosingTotal = Number(dbSnapshot?.cashierShiftClosingTotal ?? 0);
+  const cashierShiftVarianceTotal = Number(dbSnapshot?.cashierShiftVarianceTotal ?? 0);
 
   const dashboardReport = useMemo(() => {
     return {
@@ -217,11 +243,11 @@ export default function Dashboard() {
       endDate,
       brandName: brand?.name || user?.name || 'Profit Maker POS',
       totals: {
-        netSales: Number(data.turnoverExcl || 0),
-        grossSales: Number(data.turnoverIncl || 0),
-        cogs: Number(data.costOfSales || 0),
-        profit: Number(data.grossProfit || 0),
-        laborCost: Number(data.expenses || 0),
+        netSales: Number(displayData.turnoverExcl || 0),
+        grossSales: Number(displayData.turnoverIncl || 0),
+        cogs: Number(displayData.costOfSales || 0),
+        profit: Number(displayData.grossProfit || 0),
+        laborCost: Number(displayData.expenses || 0),
       },
       topSellingItems: topSellers.slice(0, 20).map((item: any) => ({
         name: item.itemName || item.name || 'N/A',
@@ -237,7 +263,7 @@ export default function Dashboard() {
       })),
       voids: [],
     };
-  }, [endDate, data, topSellers, topVariances]);
+  }, [endDate, displayData, topSellers, topVariances, brand?.name, user?.name]);
 
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseDate, setExpenseDate] = useState<string>(endDate);
@@ -249,6 +275,24 @@ export default function Dashboard() {
     () => staffRows.reduce((sum, s) => sum + (Number.isFinite(s.totalSales) ? s.totalSales : 0), 0),
     [staffRows]
   );
+
+  const hasReportActivity = useMemo(() => {
+    return (
+      Number(displayData.turnoverIncl ?? 0) > 0 ||
+      Number(displayData.invoiceCount ?? 0) > 0 ||
+      Number(displayData.customerCount ?? 0) > 0 ||
+      Number(displayData.totalPaytypes ?? 0) > 0 ||
+      topSellers.length > 0
+    );
+  }, [displayData, topSellers]);
+
+  function openDateFilters() {
+    setShowDateFilters(true);
+    window.setTimeout(() => {
+      fromInputRef.current?.focus();
+      fromInputRef.current?.showPicker?.();
+    }, 30);
+  }
 
   function handleAddExpense() {
     const amount = Number(expenseAmount);
@@ -293,52 +337,88 @@ export default function Dashboard() {
           </DropdownMenu>
         }
       />
+      {isTodayRange ? (
+        <div className="mb-4 text-center">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Today's Reports</h2>
+        </div>
+      ) : null}
       <div className="mb-3 text-sm text-muted-foreground font-medium">{rangeLabel}</div>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div
-          className="flex items-center gap-4 rounded border border-muted/40 p-2 cursor-pointer"
-          onClick={() => {
-            fromInputRef.current?.focus();
-            fromInputRef.current?.showPicker?.();
-          }}
-        >
-          <div className="grid gap-1">
-            <Label className="text-xs">From</Label>
-            <Input
-              ref={fromInputRef}
-              className="h-9"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              onClick={(e) => {
-                e.stopPropagation();
-                fromInputRef.current?.focus();
-                fromInputRef.current?.showPicker?.();
-              }}
-            />
+      {!isLoading && isTodayRange && !hasReportActivity ? (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-4 text-center">
+          <div className="text-base sm:text-lg font-semibold">No activity recorded for today yet.</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            To view past performance, choose another day or date range.
           </div>
-          <div className="grid gap-1">
-            <Label className="text-xs">To</Label>
-            <Input
-              ref={toInputRef}
-              className="h-9"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              onClick={(e) => {
-                e.stopPropagation();
-                toInputRef.current?.focus();
-                toInputRef.current?.showPicker?.();
-              }}
-            />
+          <Button className="mt-3" onClick={openDateFilters}>
+            See Reports (Metrics) For Other Days
+          </Button>
+        </div>
+      ) : null}
+      {isLoading ? (
+        <div className="mb-4 flex items-center gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/50 border-t-transparent" />
+          <div>
+            <div className="font-medium">Fetching dashboard metrics…</div>
+            <div className="text-xs text-muted-foreground">Loading the selected date range and syncing live totals.</div>
           </div>
         </div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        {!showDateFilters ? (
+          <Button variant="secondary" onClick={() => setShowDateFilters(true)}>
+            Select Date To View Reports
+          </Button>
+        ) : (
+          <div
+            className="flex items-center gap-4 rounded border border-muted/40 p-2 cursor-pointer"
+            onClick={() => {
+              fromInputRef.current?.focus();
+              fromInputRef.current?.showPicker?.();
+            }}
+          >
+            <div className="grid gap-1">
+              <Label className="text-xs">From</Label>
+              <Input
+                ref={fromInputRef}
+                className="h-9"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fromInputRef.current?.focus();
+                  fromInputRef.current?.showPicker?.();
+                }}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label className="text-xs">To</Label>
+              <Input
+                ref={toInputRef}
+                className="h-9"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toInputRef.current?.focus();
+                  toInputRef.current?.showPicker?.();
+                }}
+              />
+            </div>
+          </div>
+        )}
         <Button variant="outline" onClick={() => {
           setExpenseDate(endDate);
           setExpenseOpen(true);
         }}>
           Add Expense
         </Button>
+        {showDateFilters ? (
+          <Button variant="ghost" onClick={() => setShowDateFilters(false)}>
+            Hide Date Filters
+          </Button>
+        ) : null}
         {lastUpdated && (
           <div className="text-xs text-muted-foreground">
             Last Updated: {new Date(lastUpdated).toLocaleString()}
@@ -351,28 +431,28 @@ export default function Dashboard() {
         {[
           {
             title: 'Total Turnover (Incl)',
-            value: formatMoneyPrecise(data.turnoverIncl, 2),
-            rawValue: data.turnoverIncl,
-            subtitle: `Excl Tax: ${formatMoneyPrecise(data.turnoverExcl, 2)}`,
+            value: formatMoneyPrecise(displayData.turnoverIncl, 2),
+            rawValue: displayData.turnoverIncl,
+            subtitle: `Excl Tax: ${formatMoneyPrecise(displayData.turnoverExcl, 2)}`,
             icon: <DollarSign className="h-5 w-5 text-primary" />,
             metricName: 'Total Turnover',
           },
           {
             title: 'Cost of Sales',
-            value: formatMoneyPrecise(data.costOfSales, 2),
-            rawValue: data.costOfSales,
-            subtitle: `${data.costOfSalesPercent.toFixed(2)}% of sales`,
+            value: formatMoneyPrecise(displayData.costOfSales, 2),
+            rawValue: displayData.costOfSales,
+            subtitle: `${Number(displayData.costOfSalesPercent ?? 0).toFixed(2)}% of sales`,
             variant: 'warning',
             icon: <TrendingDown className="h-5 w-5 text-warning" />,
             metricName: 'Cost of Sales',
           },
             {
             title: 'Net Profit',
-            value: formatMoneyPrecise(data.netProfit, 2),
-            rawValue: data.netProfit,
-            subtitle: `Expenses: ${formatMoneyPrecise(data.expenses, 2)}`,
-            variant: data.netProfit >= 0 ? 'success' : 'danger',
-            icon: <DollarSign className={`h-5 w-5 ${data.netProfit >= 0 ? 'text-success' : 'text-destructive'}`} />,
+            value: formatMoneyPrecise(displayData.netProfit, 2),
+            rawValue: displayData.netProfit,
+            subtitle: `Expenses: ${formatMoneyPrecise(displayData.expenses, 2)}`,
+            variant: displayData.netProfit >= 0 ? 'success' : 'danger',
+            icon: <DollarSign className={`h-5 w-5 ${displayData.netProfit >= 0 ? 'text-success' : 'text-destructive'}`} />,
             metricName: 'Net Profit',
           },
         ].map((kpi) => (
@@ -400,67 +480,60 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <KPICard
           title="Invoices"
-          value={dbSnapshot?.invoiceCount ?? data.invoiceCount}
+          value={displayData.invoiceCount}
           loading={isLoading}
-          subtitle={`Avg: ${formatMoneyPrecise(data.avgPerInvoice, 2)}`}
+          subtitle={`Avg: ${formatMoneyPrecise(displayData.avgPerInvoice, 2)}`}
           icon={<Receipt className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Customers"
-          value={data.customerCount}
+          value={displayData.customerCount}
           loading={isLoading}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Tables"
-          value={data.tableCount}
+          value={displayData.tableCount}
           loading={isLoading}
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Stock Variance"
-          value={formatMoneyPrecise(data.stockVarianceValue, 2)}
+          value={formatMoneyPrecise(displayData.stockVarianceValue, 2)}
           icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Purchases"
-          value={formatMoneyPrecise(data.purchases, 2)}
+          value={formatMoneyPrecise(displayData.purchases, 2)}
           icon={<Package className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Hours/Day"
           value={(() => {
-            if (dbSnapshot && Array.isArray(dbSnapshot.hoursPerDay) && dbSnapshot.hoursPerDay.length > 0) {
-              // Show average sales per hour as a summary
-              const total = dbSnapshot.hoursPerDay.reduce((sum: number, h: any) => sum + Number(h.total || 0), 0);
-              return (total / dbSnapshot.hoursPerDay.length).toFixed(1);
-            }
-            return data.hoursPerDay.toFixed(1);
+            return Number(displayData.hoursPerDay ?? 0).toFixed(1);
           })()}
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Shift Closed"
-          value={Number(dbSnapshot?.cashierShiftClosedCount ?? 0)}
+          value={cashierShiftClosedCount}
           loading={isLoading}
-          subtitle={`Total shifts: ${Number(dbSnapshot?.cashierShiftCount ?? 0)}`}
+          subtitle={`Total shifts: ${cashierShiftCount}`}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Open Shifts"
-          value={
-            Number(dbSnapshot?.cashierShiftCount ?? 0) - Number(dbSnapshot?.cashierShiftClosedCount ?? 0)
-          }
+          value={cashierShiftCount - cashierShiftClosedCount}
           loading={isLoading}
           subtitle="Open shifts currently"
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}
         />
         <KPICard
           title="Cashier Overage/Short"
-          value={formatMoneyPrecise(Number(dbSnapshot?.cashierShiftVarianceTotal ?? 0), 2)}
+          value={formatMoneyPrecise(cashierShiftVarianceTotal, 2)}
           loading={isLoading}
-          subtitle={`Opening: ${formatMoneyPrecise(Number(dbSnapshot?.cashierShiftOpeningTotal ?? 0), 2)} · Closing: ${formatMoneyPrecise(Number(dbSnapshot?.cashierShiftClosingTotal ?? 0), 2)}`}
-          variant={Number(dbSnapshot?.cashierShiftVarianceTotal ?? 0) >= 0 ? 'success' : 'danger'}
+          subtitle={`Opening: ${formatMoneyPrecise(cashierShiftOpeningTotal, 2)} · Closing: ${formatMoneyPrecise(cashierShiftClosingTotal, 2)}`}
+          variant={cashierShiftVarianceTotal >= 0 ? 'success' : 'danger'}
           icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
@@ -470,7 +543,7 @@ export default function Dashboard() {
           <CardTitle className="text-base font-medium">Cashier Shift Accounts</CardTitle>
         </CardHeader>
         <CardContent>
-          {Array.isArray(dbSnapshot?.cashierShiftsByStaff) && dbSnapshot.cashierShiftsByStaff.length > 0 ? (
+          {Array.isArray(cashierShiftsByStaff) && cashierShiftsByStaff.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -483,7 +556,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dbSnapshot.cashierShiftsByStaff.map((item: any) => (
+                  {cashierShiftsByStaff.map((item: any) => (
                     <TableRow key={item.staff_id} className="border-b-white/10">
                       <TableCell className="font-medium">{item.staff_name}</TableCell>
                       <TableCell className="text-right">{Number(item.shifts || 0)}</TableCell>
@@ -554,8 +627,8 @@ export default function Dashboard() {
               let eatIn = { value: 0, percent: 0 };
               let takeOut = { value: 0, percent: 0 };
               let delivery = { value: 0, percent: 0 };
-              if (dbSnapshot && dbSnapshot.order_types) {
-                const ot = dbSnapshot.order_types;
+              if (displayData.orderTypes) {
+                const ot = displayData.orderTypes;
                 const total =
                   Number(ot.eat_in || 0) + Number(ot.take_out || 0) + Number(ot.delivery || 0);
                 eatIn.value = Number(ot.eat_in || 0);
@@ -564,10 +637,10 @@ export default function Dashboard() {
                 eatIn.percent = total > 0 ? Number(((eatIn.value / total) * 100).toFixed(1)) : 0;
                 takeOut.percent = total > 0 ? Number(((takeOut.value / total) * 100).toFixed(1)) : 0;
                 delivery.percent = total > 0 ? Number(((delivery.value / total) * 100).toFixed(1)) : 0;
-              } else if (data.orderTypes) {
-                eatIn = data.orderTypes.eatIn;
-                takeOut = data.orderTypes.takeOut;
-                delivery = data.orderTypes.delivery;
+              } else if (displayData.orderTypes) {
+                eatIn = displayData.orderTypes.eatIn;
+                takeOut = displayData.orderTypes.takeOut;
+                delivery = displayData.orderTypes.delivery;
               }
               return (
                 <>
@@ -610,15 +683,15 @@ export default function Dashboard() {
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-primary/10 rounded p-2">
                   <p className="font-medium">05h-11h</p>
-                  <p className="text-muted-foreground">{data.sessions.morning.percent}%</p>
+                  <p className="text-muted-foreground">{displayData.sessions.morning.percent}%</p>
                 </div>
                 <div className="bg-primary/10 rounded p-2">
                   <p className="font-medium">11h-17h</p>
-                  <p className="text-muted-foreground">{data.sessions.afternoon.percent}%</p>
+                  <p className="text-muted-foreground">{displayData.sessions.afternoon.percent}%</p>
                 </div>
                 <div className="bg-primary/10 rounded p-2">
                   <p className="font-medium">17h-05h</p>
-                  <p className="text-muted-foreground">{data.sessions.evening.percent}%</p>
+                  <p className="text-muted-foreground">{displayData.sessions.evening.percent}%</p>
                 </div>
               </div>
             </div>
