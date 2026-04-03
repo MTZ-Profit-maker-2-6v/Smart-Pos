@@ -251,6 +251,7 @@ function RecordBatchDialog(props: {
   setRecipeSearchOpen: (open: boolean) => void;
   onSubmit: () => void;
 }) {
+  const { formatMoneyPrecise } = useCurrency();
   const r = props.recipes.find(x => x.id === props.recipeId) ?? null;
 
   const stockById = useMemo(() => new Map(props.stockItems.map((s) => [s.id, s] as const)), [props.stockItems]);
