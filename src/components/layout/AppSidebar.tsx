@@ -100,6 +100,7 @@ const disabledFeatureRoutes = new Set([
   '/app/zra-invoice-demo',
   '/app/report-share-demo',
   '/app/receipt-demo',
+  '/app/audit-dashboard',
 ]);
 
 const disabledFeatureMessage = 'Feature coming soon';

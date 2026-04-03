@@ -1,5 +1,5 @@
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { useState, useEffect, useSyncExternalStore } from 'react';
+import { useState, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { PageHeader } from '@/components/common/PageComponents';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
